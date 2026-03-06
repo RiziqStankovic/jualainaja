@@ -1,0 +1,481 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    padding-bottom: 80px;
+}
+
+.tabsWrapper {
+    display: flex;
+    overflow-x: hidden;
+    justify-content: space-between;
+    border-bottom: 1px solid #e2e8f0;
+    scrollbar-width: none;
+    background-color: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 15;
+}
+
+.tabsWrapper::-webkit-scrollbar {
+    display: none;
+}
+
+.tabBtn {
+    flex: 1;
+    min-width: 0;
+    padding: 16px 8px;
+    background: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    white-space: nowrap;
+    text-align: center;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.tabActive {
+    color: #1d4ed8;
+    border-bottom: 2px solid #1d4ed8;
+}
+
+.controlsRow {
+    display: flex;
+    padding: 16px 20px 0;
+    gap: 12px;
+}
+
+.searchBox {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 12px;
+    color: #94a3b8;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 12px 16px 12px 40px;
+    border: 1px solid #dbe5f2;
+    border-radius: 12px;
+    font-size: 14px;
+    outline: none;
+    background-color: #ffffff;
+}
+
+.searchInput:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.filterBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    border: 1px solid #dbe5f2;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #475569;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.filterBtn:active {
+    transform: scale(0.98);
+}
+
+.actionsRow {
+    display: flex;
+    padding: 16px 20px;
+    gap: 12px;
+}
+
+.actionBtn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s;
+}
+
+.actionBtn:active {
+    transform: scale(0.97);
+    opacity: 0.9;
+}
+
+.updateBtn {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    box-shadow: 0 8px 16px rgba(30, 64, 175, 0.22);
+}
+
+.addBtn {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
+}
+
+.emptyState {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    text-align: center;
+    margin-top: 8px;
+}
+
+.illustrationBlob {
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle at 25% 25%, #dbeafe, #bfdbfe);
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    position: relative;
+    box-shadow: inset 10px 10px 20px rgba(59, 130, 246, 0.18);
+}
+
+.illustrationIcon {
+    color: #1d4ed8;
+    z-index: 1;
+}
+
+.emptyTitle {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 8px;
+}
+
+.emptySubtitle {
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+    max-width: 300px;
+}
+
+.listSection {
+    padding: 0 20px 90px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.productRow {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.productMain {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.productPreview {
+    width: 54px;
+    height: 54px;
+}
+
+.productPreviewImg {
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.productPreviewFallback {
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+    color: #1d4ed8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.productMain h4 {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.metaLine {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.typeTag {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+}
+
+.statusTag {
+    background: #e0e7ff;
+    color: #3730a3;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+}
+
+.dateLine {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.priceBox {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    min-width: 110px;
+}
+
+.priceBox p {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.priceBox h5 {
+    color: #1d4ed8;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.detailLink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border: 1px solid #dbe5f2;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1d4ed8;
+    margin-top: 2px;
+    background: #ffffff;
+}
+
+.productActions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.editPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 120px;
+}
+
+.editPanel input {
+    border: 1px solid #dbe5f2;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 12px;
+}
+
+.editPanel select {
+    border: 1px solid #dbe5f2;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 12px;
+    background: #ffffff;
+}
+
+.editPanel button {
+    border: none;
+    border-radius: 8px;
+    padding: 7px;
+    background: #1d4ed8;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 120;
+}
+
+.modalContent {
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    padding: 20px;
+}
+
+.modalContent h3 {
+    margin-bottom: 14px;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.modalForm {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modalForm input,
+.modalForm select {
+    width: 100%;
+    border: 1px solid #dbe5f2;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 14px;
+}
+
+.modalForm textarea {
+    width: 100%;
+    border: 1px solid #dbe5f2;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 14px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.inlineCheck {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+}
+
+.inlineCheck input {
+    width: 16px;
+    height: 16px;
+}
+
+.modalRow {
+    display: flex;
+    gap: 10px;
+}
+
+.submitBtn {
+    margin-top: 4px;
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    cursor: pointer;
+}
+
+.submitBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+    .controlsRow {
+        padding: 14px 16px 0;
+    }
+
+    .actionsRow {
+        padding: 14px 16px;
+        gap: 10px;
+    }
+
+    .actionBtn {
+        font-size: 13px;
+        padding: 11px 10px;
+    }
+
+    .emptyState {
+        padding: 24px 16px;
+    }
+
+    .listSection {
+        padding: 0 16px 90px;
+    }
+
+    .productRow {
+        flex-direction: column;
+    }
+
+    .productPreview,
+    .productPreviewImg,
+    .productPreviewFallback {
+        width: 48px;
+        height: 48px;
+    }
+
+    .priceBox,
+    .editPanel {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .priceBox {
+        text-align: left;
+    }
+
+    .illustrationBlob {
+        width: 176px;
+        height: 176px;
+        margin-bottom: 18px;
+    }
+}

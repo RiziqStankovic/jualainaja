@@ -1,0 +1,260 @@
+.container {
+    min-height: 100vh;
+    background: #f1f5f9;
+    display: flex;
+    justify-content: center;
+    padding: 20px 14px 28px;
+}
+
+.card {
+    width: 100%;
+    max-width: 460px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.store {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0d9488;
+}
+
+.imageWrap {
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #e2e8f0;
+}
+
+.image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.card h1 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.price {
+    font-size: 22px;
+    font-weight: 800;
+    color: #1d4ed8;
+}
+
+.stock {
+    font-size: 13px;
+    color: #475569;
+    font-weight: 700;
+}
+
+.statusRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.statusBadge {
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.statusAktif {
+    background: #e6fcf5;
+    color: #0d9488;
+}
+
+.statusHabis,
+.statusTidakAktif {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.statusHold {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.statusExpired {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+.desc {
+    font-size: 14px;
+    color: #334155;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.guestBox {
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #f8fafc;
+}
+
+.guestBox p {
+    font-size: 12px;
+    color: #475569;
+    font-weight: 600;
+}
+
+.guestBox input {
+    width: 100%;
+    border: 1px solid #dbe5f2;
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 13px;
+}
+
+.authActions {
+    display: flex;
+    gap: 8px;
+}
+
+.authActions a {
+    border: 1px solid #dbe5f2;
+    border-radius: 9px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1d4ed8;
+    background: #ffffff;
+}
+
+.qtyRow {
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.qtyRow button {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid #dbe5f2;
+    background: #ffffff;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.qtyRow button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.qtyRow span {
+    min-width: 24px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.buyBtn {
+    margin-top: 6px;
+    border: none;
+    border-radius: 12px;
+    min-height: 44px;
+    padding: 10px 12px;
+    background: linear-gradient(135deg, #0d9488, #0f766e);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.buyBtn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.recoSection {
+    width: 100%;
+    max-width: 460px;
+    margin-top: 12px;
+}
+
+.recoSection h3 {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 8px;
+}
+
+.recoList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.recoItem {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.recoImage,
+.recoFallback {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+}
+
+.recoImage {
+    object-fit: cover;
+    border: 1px solid #dbe5f2;
+}
+
+.recoFallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 800;
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.recoName {
+    font-size: 13px;
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.recoPrice {
+    font-size: 12px;
+    color: #1d4ed8;
+    font-weight: 700;
+}

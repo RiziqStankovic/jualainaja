@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model PosTenant {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  categories PosCategory[]
+  products   PosProduct[]
+  transactions PosTransaction[]
+
+  @@map("pos_tenant")
+}
+
+model PosCategory {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    PosTenant @relation(fields: [tenantId], references: [id])
+  products  PosProduct[]
+
+  @@unique([tenantId, name])
+  @@map("pos_category")
+}
+
+model PosProduct {
+  id          String   @id @default(uuid())
+  tenantId    String
+  categoryId  String?
+  name        String
+  description String?
+  price       Float
+  stock       Int      @default(0)
+  type        String   // Fisik, Digital, Jasa, Acara
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      PosTenant    @relation(fields: [tenantId], references: [id])
+  category    PosCategory? @relation(fields: [categoryId], references: [id])
+  transactionItems PosTransactionItem[]
+  
+  @@map("pos_product")
+}
+
+model PosTransaction {
+  id          String   @id @default(uuid())
+  tenantId    String
+  totalAmount Float
+  status      String   @default("COMPLETED")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      PosTenant    @relation(fields: [tenantId], references: [id])
+  items       PosTransactionItem[]
+
+  @@map("pos_transaction")
+}
+
+model PosTransactionItem {
+  id            String   @id @default(uuid())
+  transactionId String
+  productId     String
+  quantity      Int
+  priceAtTime   Float
+  
+  transaction   PosTransaction @relation(fields: [transactionId], references: [id])
+  product       PosProduct     @relation(fields: [productId], references: [id])
+
+  @@map("pos_transaction_item")
+}

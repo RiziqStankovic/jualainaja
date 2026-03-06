@@ -1,141 +1,240 @@
-.page {
-  --background: #fafafa;
-  --foreground: #fff;
-
-  --text-primary: #000;
-  --text-secondary: #666;
-
-  --button-primary-hover: #383838;
-  --button-secondary-hover: #f2f2f2;
-  --button-secondary-border: #ebebeb;
-
+.landingContainer {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-geist-sans);
-  background-color: var(--background);
+  background-color: var(--surface);
 }
 
-.main {
+.header {
   display: flex;
-  min-height: 100vh;
-  width: 100%;
-  max-width: 800px;
-  flex-direction: column;
-  align-items: flex-start;
   justify-content: space-between;
-  background-color: var(--foreground);
-  padding: 120px 60px;
+  align-items: center;
+  padding: 24px 20px;
 }
 
-.intro {
+.logo {
+  color: #0d9488;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.langSwitch {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 24px;
-}
-
-.intro h1 {
-  max-width: 320px;
-  font-size: 40px;
-  font-weight: 600;
-  line-height: 48px;
-  letter-spacing: -2.4px;
-  text-wrap: balance;
-  color: var(--text-primary);
-}
-
-.intro p {
-  max-width: 440px;
-  font-size: 18px;
-  line-height: 32px;
-  text-wrap: balance;
-  color: var(--text-secondary);
-}
-
-.intro a {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.ctas {
-  display: flex;
-  flex-direction: row;
-  width: 100%;
-  max-width: 440px;
-  gap: 16px;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 
-.ctas a {
+.hero {
+  padding: 32px 20px 48px;
+  text-align: center;
+  background: linear-gradient(180deg, #f0fdfa 0%, var(--surface) 100%);
+  border-radius: 0 0 32px 32px;
+  margin-bottom: 24px;
+}
+
+.loginSwitcher {
+  display: inline-flex;
+  background-color: var(--bg-color);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 32px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.switcherBtn {
+  flex: 1;
+  padding: 12px 0;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.switcherBtnActive {
+  background: var(--surface);
+  color: #0d9488;
+  box-shadow: var(--shadow-sm);
+}
+
+.loginIcon {
   display: flex;
   justify-content: center;
-  align-items: center;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: 128px;
-  border: 1px solid transparent;
-  transition: 0.2s;
-  cursor: pointer;
-  width: fit-content;
-  font-weight: 500;
+  margin-bottom: 24px;
 }
 
-a.primary {
-  background: var(--text-primary);
-  color: var(--background);
+.shieldIcon {
+  width: 72px;
+  height: 72px;
+  background: linear-gradient(135deg, #ccfbf1, #99f6e4);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f766e;
+  box-shadow: 0 8px 16px rgba(20, 184, 166, 0.15);
+}
+
+.heroTitle {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+  margin-bottom: 16px;
+}
+
+.heroSubtitle {
+  font-size: 15px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  padding: 0 10px;
+}
+
+.featuresSection {
+  padding: 40px 20px;
+  background-color: var(--surface);
+}
+
+.featuresHeader {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.featuresTitle {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 12px;
+}
+
+.featuresSubtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.featureCard {
+  padding: 24px 16px;
+  border-radius: 20px;
+  border: none;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.featureCard:active {
+  transform: translateY(2px);
+}
+
+.featureCard.physical {
+  background: #f0f9ff;
+}
+
+.featureCard.digital {
+  background: #faf5ff;
+}
+
+.featureCard.service {
+  background: #f0fdf4;
+}
+
+.featureCard.event {
+  background: #fffbeb;
+}
+
+.iconBox {
+  width: 48px;
+  height: 48px;
+  background: white;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  margin-bottom: 8px;
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cardDesc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.authForm {
+  padding: 0 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-a.secondary {
-  border-color: var(--button-secondary-border);
+.inputGroup label {
+  font-size: 14px;
+  font-weight: 600;
 }
 
-/* Enable hover only on non-touch devices */
-@media (hover: hover) and (pointer: fine) {
-  a.primary:hover {
-    background: var(--button-primary-hover);
-    border-color: transparent;
-  }
-
-  a.secondary:hover {
-    background: var(--button-secondary-hover);
-    border-color: transparent;
-  }
+.inputField {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  font-size: 15px;
+  background: var(--bg-color);
 }
 
-@media (max-width: 600px) {
-  .main {
-    padding: 48px 24px;
-  }
-
-  .intro {
-    gap: 16px;
-  }
-
-  .intro h1 {
-    font-size: 32px;
-    line-height: 40px;
-    letter-spacing: -1.92px;
-  }
+.inputField:focus {
+  outline: none;
+  border-color: #0d9488;
+  background: white;
 }
 
-@media (prefers-color-scheme: dark) {
-  .logo {
-    filter: invert();
-  }
+.loginBtn {
+  margin-top: 12px;
+  background: linear-gradient(135deg, #0d9488, #0f766e);
+  color: white;
+  padding: 16px;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(13, 148, 136, 0.25);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
 
-  .page {
-    --background: #000;
-    --foreground: #000;
-
-    --text-primary: #ededed;
-    --text-secondary: #999;
-
-    --button-primary-hover: #ccc;
-    --button-secondary-hover: #1a1a1a;
-    --button-secondary-border: #1a1a1a;
-  }
+.loginBtn:active {
+  transform: translateY(2px);
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.15);
 }
