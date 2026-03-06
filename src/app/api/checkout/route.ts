@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { extractProductMeta, ProductStatus } from "@/lib/product-meta";
-import { PrismaClient } from "@prisma/client";
 
 type CheckoutItem = {
     id: string;
     quantity: number;
 };
 
-type TxClient = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;
+type TxClient = {
+    posProduct: typeof prisma.posProduct;
+};
 
 function getProductStatus(stock: number, description?: string | null): ProductStatus {
     const meta = extractProductMeta(description);
