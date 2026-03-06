@@ -43,8 +43,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         }
 
         const recommendationsRaw = products
-            .filter((item) => item.id !== product.id && item.tenantId === product.tenantId)
-            .map((item) => {
+            .filter((item: { id: string; tenantId: string }) => item.id !== product.id && item.tenantId === product.tenantId)
+            .map((item: { id: string; tenantId: string; description?: string | null; stock: number; name: string; price: number; imageUrl?: string | null }) => {
                 const itemMeta = extractProductMeta(item.description);
                 return {
                     item,
@@ -52,9 +52,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
                     status: getProductStatus(item.stock, itemMeta.status || null, itemMeta.statusDate || null),
                 };
             })
-            .filter((entry) => entry.isPublic && entry.status === "Aktif")
+            .filter((entry: { isPublic: boolean; status: ProductStatus }) => entry.isPublic && entry.status === "Aktif")
             .slice(0, 4)
-            .map((entry) => ({
+            .map((entry: { item: { id: string; name: string; price: number; imageUrl?: string | null; stock: number } }) => ({
                 id: entry.item.id,
                 name: entry.item.name,
                 price: entry.item.price,
