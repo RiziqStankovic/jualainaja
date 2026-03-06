@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { extractProductMeta, ProductStatus } from "@/lib/product-meta";
-import { Prisma } from "@prisma/client";
 
 type CheckoutItem = {
     id: string;
@@ -41,7 +40,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Item checkout tidak valid." }, { status: 400 });
         }
 
-        const updatedProducts = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const updatedProducts = await prisma.$transaction(async (tx: typeof prisma) => {
             for (const item of normalizedItems) {
                 const product = await tx.posProduct.findUnique({
                     where: { id: item.id },
