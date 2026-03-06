@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { extractProductMeta, ProductStatus } from "@/lib/product-meta";
+import { PrismaClient } from "@prisma/client";
 
 type CheckoutItem = {
     id: string;
     quantity: number;
 };
+
+type TxClient = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;
 
 function getProductStatus(stock: number, description?: string | null): ProductStatus {
     const meta = extractProductMeta(description);
@@ -40,7 +43,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Item checkout tidak valid." }, { status: 400 });
         }
 
-        const updatedProducts = await prisma.$transaction(async (tx: typeof prisma) => {
+        const updatedProducts = await prisma.$transaction(async (tx: TxClient) => {
             for (const item of normalizedItems) {
                 const product = await tx.posProduct.findUnique({
                     where: { id: item.id },

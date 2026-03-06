@@ -22,7 +22,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         const products = await prisma.posProduct.findMany({
             include: { tenant: { select: { name: true } } },
         });
-        const product = products.find((item) => item.id.replace(/-/g, "").toLowerCase().startsWith(uniquePart));
+        const product = products.find((item: { id: string }) =>
+            item.id.replace(/-/g, "").toLowerCase().startsWith(uniquePart)
+        );
 
         if (!product) {
             return NextResponse.json({ error: "Produk tidak ditemukan." }, { status: 404 });
