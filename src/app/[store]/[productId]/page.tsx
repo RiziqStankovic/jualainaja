@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import styles from "./page.module.css";
-import { addPurchaseHistory, addSalesHistory, findMerchantByName, getSessionUser } from "@/lib/local-auth";
+import { addPurchaseHistory, addSalesHistory, getSessionUser } from "@/lib/local-auth";
 import type { ProductStatus } from "@/lib/product-meta";
 
 type PublicProduct = {
@@ -73,7 +73,7 @@ export default function PublicProductPage() {
         if (!product) return;
 
         const customerEmail = sessionUser?.email || guestEmail.trim().toLowerCase();
-        const customerName = sessionUser?.name || guestEmail.trim().split("@")[0] || "Guest";
+        const customerName = sessionUser?.name || guestEmail.trim().split("@")[0] || "Pelanggan";
         const customerPhone = guestPhone.trim();
 
         if (!sessionUser && (!customerEmail || !customerPhone)) {
@@ -105,10 +105,9 @@ export default function PublicProductPage() {
                 totalAmount: total,
             });
 
-            const merchant = findMerchantByName(product.storeName);
             addSalesHistory({
                 merchantName: product.storeName,
-                merchantEmail: merchant?.email,
+                merchantEmail: undefined,
                 channel: "public",
                 itemsCount: qty,
                 totalAmount: total,

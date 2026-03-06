@@ -5,7 +5,7 @@ import styles from "./products.module.css";
 import { Search, Filter, RefreshCw, Plus, PackageOpen, LayoutGrid, Tag, CalendarDays, Save, Share2, ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ProductStatus } from "@/lib/product-meta";
-import { getSessionUser } from "@/lib/local-auth";
+import { getSessionUser, getTenantContext } from "@/lib/local-auth";
 
 type Product = {
     id: string;
@@ -26,6 +26,41 @@ type Product = {
 
 const tabs: ProductStatus[] = ["Aktif", "Habis", "Hold", "Expired", "Tidak Aktif"];
 const typeFilters = ["Semua", "Fisik", "Digital", "Jasa", "Acara"] as const;
+
+const PRODUCT_CACHE_TTL_MS = 15_000;
+const productsInFlight = new Map<string, Promise<Product[]>>();
+const productsCache = new Map<string, { ts: number; data: Product[] }>();
+
+async function fetchProductsWithDedupe(tenantId: string, tenantName?: string): Promise<Product[]> {
+    const key = `${tenantId}::${tenantName ?? ""}`;
+    const cached = productsCache.get(key);
+    if (cached && Date.now() - cached.ts < PRODUCT_CACHE_TTL_MS) {
+        return cached.data;
+    }
+
+    const inFlight = productsInFlight.get(key);
+    if (inFlight) {
+        return inFlight;
+    }
+
+    const query = new URLSearchParams();
+    query.set("tenantId", tenantId);
+    if (tenantName) query.set("tenantName", tenantName);
+
+    const request = fetch(`/api/products?${query.toString()}`)
+        .then(async (res) => {
+            if (!res.ok) throw new Error("Failed to fetch products");
+            const data = (await res.json()) as Product[];
+            productsCache.set(key, { ts: Date.now(), data });
+            return data;
+        })
+        .finally(() => {
+            productsInFlight.delete(key);
+        });
+
+    productsInFlight.set(key, request);
+    return request;
+}
 
 function getDerivedStatus(product: Product): ProductStatus {
     if (product.status) return product.status;
@@ -99,11 +134,12 @@ export default function ProductsPage() {
         setLoading(true);
         try {
             const sessionUser = getSessionUser();
-            const query = new URLSearchParams();
-            if (sessionUser?.name) query.set("tenantName", sessionUser.name);
-            const res = await fetch(`/api/products${query.toString() ? `?${query.toString()}` : ""}`);
-            if (!res.ok) throw new Error("Failed to fetch products");
-            const data = await res.json();
+            const tenant = getTenantContext(sessionUser);
+            if (!tenant) {
+                setProducts([]);
+                return;
+            }
+            const data = await fetchProductsWithDedupe(tenant.tenantId, sessionUser?.name);
             setProducts(data);
         } catch (error) {
             console.error(error);
@@ -114,6 +150,17 @@ export default function ProductsPage() {
 
     useEffect(() => {
         fetchProducts();
+    }, []);
+
+    useEffect(() => {
+        const handleLogout = () => {
+            setProducts([]);
+            setSearch("");
+            setDrafts({});
+            setIsAddOpen(false);
+        };
+        window.addEventListener("auth:logout", handleLogout);
+        return () => window.removeEventListener("auth:logout", handleLogout);
     }, []);
 
     const filteredProducts = useMemo(() => {
@@ -150,6 +197,11 @@ export default function ProductsPage() {
     const saveProductDraft = async (id: string) => {
         const draft = drafts[id];
         if (!draft) return;
+        const tenant = getTenantContext(getSessionUser());
+        if (!tenant) {
+            alert("Silakan login dulu.");
+            return;
+        }
         try {
             const res = await fetch(`/api/products/${id}`, {
                 method: "PATCH",
@@ -159,6 +211,7 @@ export default function ProductsPage() {
                     stock: Number(draft.stock),
                     status: draft.status,
                     statusDate: draft.statusDate || null,
+                    tenantId: tenant.tenantId,
                 }),
             });
             if (!res.ok) throw new Error("Failed to update product");
@@ -174,6 +227,11 @@ export default function ProductsPage() {
         setSavingAdd(true);
         try {
             const sessionUser = getSessionUser();
+            const tenant = getTenantContext(sessionUser);
+            if (!tenant) {
+                alert("Silakan login dulu.");
+                return;
+            }
             const res = await fetch("/api/products", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -181,6 +239,8 @@ export default function ProductsPage() {
                     ...addForm,
                     statusDate: addForm.statusDate || null,
                     tenantName: sessionUser?.name || undefined,
+                    tenantEmail: sessionUser?.email || undefined,
+                    tenantId: tenant.tenantId,
                 }),
             });
             if (!res.ok) throw new Error("Failed to add product");

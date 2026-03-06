@@ -18,7 +18,7 @@ import {
     LayoutGrid,
     List,
 } from "lucide-react";
-import { addSalesHistory, getSessionUser } from "@/lib/local-auth";
+import { addSalesHistory, getSessionUser, getTenantContext } from "@/lib/local-auth";
 
 interface Product {
     id: string;
@@ -115,7 +115,7 @@ export default function POSPage() {
     const [paymentMethod, setPaymentMethod] = useState<"cash" | "online">("cash");
     const [cashPaid, setCashPaid] = useState("");
     const [processingPayment, setProcessingPayment] = useState(false);
-    const [storeName] = useState("Toko Jualinaja");
+    const [storeName, setStoreName] = useState("Toko");
     const [viewMode, setViewMode] = useState<"grid" | "list">(initialViewMode);
 
     const locationOptions = ["Semua Lokasi", "Jakarta", "Bandung", "Surabaya", "Yogyakarta", "Denpasar", "Medan"];
@@ -182,9 +182,16 @@ export default function POSPage() {
 
         try {
             const sessionUser = getSessionUser();
+            const tenant = getTenantContext(sessionUser);
+            if (!tenant) {
+                setProducts([]);
+                setHasMore(false);
+                return;
+            }
             const q = new URLSearchParams();
             if (search.trim()) q.append("search", search.trim());
             if (activeFilter !== "Semua") q.append("type", activeFilter);
+            q.append("tenantId", tenant.tenantId);
             if (sessionUser?.name) q.append("tenantName", sessionUser.name);
             q.append("sort", SORT_PARAM_MAP[activeSort] || "name_asc");
             q.append("page", String(pageToLoad));
@@ -231,6 +238,11 @@ export default function POSPage() {
             viewMode,
         };
     }, [activeFilter, activeSort, search, viewMode]);
+
+    useEffect(() => {
+        const user = getSessionUser();
+        if (user?.name) setStoreName(user.name);
+    }, []);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -291,6 +303,26 @@ export default function POSPage() {
         window.addEventListener("products:updated", handleProductsUpdated);
         return () => window.removeEventListener("products:updated", handleProductsUpdated);
     }, [fetchProductsPage, queryKey]);
+
+    useEffect(() => {
+        const handleLogout = () => {
+            cacheRef.current.clear();
+            queryCacheStore.clear();
+            persistedPosUiState = {
+                activeFilter: "Semua",
+                activeSort: "Nama: A-Z",
+                search: "",
+                viewMode: "grid",
+            };
+            setCart([]);
+            setSearch("");
+            setActiveFilter("Semua");
+            setActiveSort("Nama: A-Z");
+        };
+
+        window.addEventListener("auth:logout", handleLogout);
+        return () => window.removeEventListener("auth:logout", handleLogout);
+    }, [cacheRef]);
 
     const addToCart = (product: Product) => {
         setCart((prev) => {

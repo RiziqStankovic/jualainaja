@@ -32,8 +32,8 @@ const formatProduct = <T extends { description?: string | null; tenant?: { name?
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get("tenantId") || "default-tenant"; // Hardcoded for demo
-    const tenantName = searchParams.get("tenantName") || "Toko Jualinaja";
+    const tenantId = searchParams.get("tenantId");
+    const tenantName = searchParams.get("tenantName");
     const search = searchParams.get("search") || "";
     const type = searchParams.get("type"); // Fisik, Digital, dll
     const pageParam = Number(searchParams.get("page") || 0);
@@ -42,47 +42,26 @@ export async function GET(request: Request) {
     const sortConfig = SORT_MAP[sortKey] || SORT_MAP.newest;
     const isPaginated = Number.isFinite(pageParam) && Number.isFinite(perPageParam) && pageParam > 0 && perPageParam > 0;
 
+    if (!tenantId) {
+        return NextResponse.json({ error: "tenantId wajib diisi." }, { status: 400 });
+    }
+
     try {
         const where = {
             tenantId,
             name: {
                 contains: search,
-                mode: 'insensitive' as const,
             },
             ...(type ? { type } : {})
         };
 
-        if (!search && !type) {
-            if (tenantName) {
-                const existingTenant = await prisma.posTenant.findUnique({ where: { id: tenantId } });
-                if (existingTenant && existingTenant.name !== tenantName) {
-                    await prisma.posTenant.update({
-                        where: { id: tenantId },
-                        data: { name: tenantName },
-                    });
-                }
-            }
-            const currentCount = await prisma.posProduct.count({ where: { tenantId } });
-            if (currentCount === 0) {
-            let tenant = await prisma.posTenant.findUnique({ where: { id: tenantId } });
-            if (!tenant) {
-                tenant = await prisma.posTenant.create({
-                    data: {
-                        id: tenantId,
-                        name: tenantName,
-                        email: `tenant-${tenantId}@jualinaja.local`,
-                    }
+        if (!search && !type && tenantName) {
+            const existingTenant = await prisma.posTenant.findUnique({ where: { id: tenantId } });
+            if (existingTenant && existingTenant.name !== tenantName) {
+                await prisma.posTenant.update({
+                    where: { id: tenantId },
+                    data: { name: tenantName },
                 });
-            }
-
-            await prisma.posProduct.createMany({
-                data: [
-                    { tenantId: tenant.id, name: "Kopi Susu Literan", price: 45000, stock: 18, type: "Fisik" },
-                    { tenantId: tenant.id, name: "E-book Resep UMKM", price: 75000, stock: 999, type: "Digital" },
-                    { tenantId: tenant.id, name: "Jasa Desain Logo", price: 250000, stock: 12, type: "Jasa" },
-                ],
-                skipDuplicates: true,
-            });
             }
         }
 
@@ -126,7 +105,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, price, stock, type, categoryId, tenantId = "default-tenant", tenantName, status, statusDate, isPublic, description, imageUrl } = body;
+        const { name, price, stock, type, categoryId, tenantId, tenantName, tenantEmail, status, statusDate, isPublic, description, imageUrl } = body;
+        if (!tenantId || typeof tenantId !== "string") {
+            return NextResponse.json({ error: "tenantId wajib diisi." }, { status: 400 });
+        }
         const normalizedStatus = VALID_STATUS.includes(status) ? status : undefined;
         const normalizedDate = typeof statusDate === "string" && statusDate.trim() ? statusDate : null;
         const fullDescription = buildProductDescription(description, {
@@ -135,14 +117,16 @@ export async function POST(request: Request) {
             isPublic: typeof isPublic === "boolean" ? isPublic : true,
         });
 
-        // Ensure tenant exists for demo purposes
         let tenant = await prisma.posTenant.findUnique({ where: { id: tenantId } });
         if (!tenant) {
+            if (!tenantEmail || typeof tenantEmail !== "string") {
+                return NextResponse.json({ error: "tenantEmail wajib diisi untuk tenant baru." }, { status: 400 });
+            }
             tenant = await prisma.posTenant.create({
                 data: {
                     id: tenantId,
-                    name: typeof tenantName === "string" && tenantName.trim() ? tenantName.trim() : "Toko Jualinaja",
-                    email: `tenant-${tenantId}@jualinaja.local`
+                    name: typeof tenantName === "string" && tenantName.trim() ? tenantName.trim() : tenantId,
+                    email: tenantEmail.trim().toLowerCase()
                 }
             });
         } else if (typeof tenantName === "string" && tenantName.trim() && tenant.name !== tenantName.trim()) {

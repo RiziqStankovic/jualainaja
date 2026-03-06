@@ -10,7 +10,16 @@ const prismaClientSingleton = () => {
         throw new Error("DATABASE_URL is not set.");
     }
 
-    const adapter = new PrismaPg({ connectionString });
+    const parsedPoolMax = Number(process.env.DB_POOL_MAX ?? "2");
+    const max = Number.isFinite(parsedPoolMax) && parsedPoolMax > 0 ? parsedPoolMax : 2;
+    const adapter = new PrismaPg({
+        connectionString,
+        // Keep pool small to avoid Supabase session-mode max-clients errors.
+        max,
+        idleTimeoutMillis: 10_000,
+        connectionTimeoutMillis: 10_000,
+        allowExitOnIdle: process.env.NODE_ENV !== "production",
+    });
     return new PrismaClient({ adapter });
 };
 

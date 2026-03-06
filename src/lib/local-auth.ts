@@ -46,6 +46,14 @@ function isBrowser() {
     return typeof window !== "undefined";
 }
 
+function toSlug(value: string) {
+    return value
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
 export function getUsers(): LocalUser[] {
     if (!isBrowser()) return [];
     const raw = localStorage.getItem(USERS_KEY);
@@ -81,6 +89,21 @@ export function setSessionUser(user: SessionUser) {
 export function clearSessionUser() {
     if (!isBrowser()) return;
     localStorage.removeItem(SESSION_KEY);
+    window.dispatchEvent(new Event("auth:logout"));
+}
+
+export function getTenantContext(user?: SessionUser | null) {
+    const current = user ?? getSessionUser();
+    if (!current) {
+        return null;
+    }
+
+    const emailPart = toSlug(current.email) || "user";
+    return {
+        tenantId: `tenant-${emailPart}`,
+        tenantName: current.name || current.email,
+        tenantEmail: current.email,
+    };
 }
 
 export function getPurchaseHistory(email?: string): PurchaseHistory[] {

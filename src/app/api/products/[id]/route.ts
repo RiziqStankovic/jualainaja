@@ -19,9 +19,11 @@ const formatProduct = <T extends { description?: string | null; tenant?: { name?
     };
 };
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await context.params;
+        const { searchParams } = new URL(request.url);
+        const tenantId = searchParams.get("tenantId");
         if (!id) {
             return NextResponse.json({ error: "ID produk tidak valid." }, { status: 400 });
         }
@@ -31,6 +33,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
             include: { tenant: { select: { name: true } } },
         });
         if (!product) {
+            return NextResponse.json({ error: "Produk tidak ditemukan." }, { status: 404 });
+        }
+        if (tenantId && product.tenantId !== tenantId) {
             return NextResponse.json({ error: "Produk tidak ditemukan." }, { status: 404 });
         }
 
@@ -45,8 +50,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     try {
         const { id } = await context.params;
         const body = await request.json();
+        const tenantId = typeof body?.tenantId === "string" ? body.tenantId : undefined;
         if (!id) {
             return NextResponse.json({ error: "ID produk tidak valid." }, { status: 400 });
+        }
+
+        const ownedProduct = await prisma.posProduct.findUnique({
+            where: { id },
+            select: { id: true, tenantId: true, description: true },
+        });
+        if (!ownedProduct) {
+            return NextResponse.json({ error: "Produk tidak ditemukan." }, { status: 404 });
+        }
+        if (tenantId && ownedProduct.tenantId !== tenantId) {
+            return NextResponse.json({ error: "Produk tidak ditemukan." }, { status: 404 });
         }
 
         const updateData: {
@@ -93,17 +110,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         }
 
         if (body?.description !== undefined || body?.status !== undefined || body?.statusDate !== undefined || body?.isPublic !== undefined) {
-            const product = await prisma.posProduct.findUnique({
-                where: { id },
-                select: { description: true },
-            });
-
-            if (!product) {
-                return NextResponse.json({ error: "Produk tidak ditemukan." }, { status: 404 });
-            }
-
-            const currentMeta = extractProductMeta(product.description);
-            const currentText = extractProductText(product.description);
+            const currentMeta = extractProductMeta(ownedProduct.description);
+            const currentText = extractProductText(ownedProduct.description);
             const requestedStatus =
                 body?.status === null || body?.status === ""
                     ? undefined

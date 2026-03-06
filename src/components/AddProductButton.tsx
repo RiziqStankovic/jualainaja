@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import styles from "./AddProductButton.module.css";
 import type { ProductStatus } from "@/lib/product-meta";
-import { getSessionUser } from "@/lib/local-auth";
+import { getSessionUser, getTenantContext } from "@/lib/local-auth";
 
 export default function AddProductButton() {
     const [isOpen, setIsOpen] = useState(false);
@@ -23,6 +23,11 @@ export default function AddProductButton() {
         setLoading(true);
         try {
             const sessionUser = getSessionUser();
+            const tenant = getTenantContext(sessionUser);
+            if (!tenant) {
+                alert("Silakan login dulu.");
+                return;
+            }
             const res = await fetch("/api/products", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -30,6 +35,8 @@ export default function AddProductButton() {
                     ...formData,
                     statusDate: formData.statusDate || null,
                     tenantName: sessionUser?.name || undefined,
+                    tenantEmail: sessionUser?.email || undefined,
+                    tenantId: tenant.tenantId,
                 }),
             });
             if (res.ok) {

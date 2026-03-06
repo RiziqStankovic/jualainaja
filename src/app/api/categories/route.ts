@@ -5,7 +5,10 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get("tenantId") || "default-tenant";
+    const tenantId = searchParams.get("tenantId");
+    if (!tenantId) {
+        return NextResponse.json({ error: "tenantId wajib diisi." }, { status: 400 });
+    }
 
     try {
         const categories = await prisma.posCategory.findMany({
@@ -23,7 +26,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, tenantId = "default-tenant" } = body;
+        const { name, tenantId } = body;
+        if (!tenantId || typeof tenantId !== "string") {
+            return NextResponse.json({ error: "tenantId wajib diisi." }, { status: 400 });
+        }
 
         const category = await prisma.posCategory.create({
             data: {

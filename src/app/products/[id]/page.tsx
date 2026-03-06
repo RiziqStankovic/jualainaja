@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "./page.module.css";
 import type { ProductStatus } from "@/lib/product-meta";
+import { getSessionUser, getTenantContext } from "@/lib/local-auth";
 
 type ProductDetail = {
     id: string;
@@ -55,7 +56,12 @@ export default function ProductDetailPage() {
     useEffect(() => {
         const fetchDetail = async () => {
             try {
-                const res = await fetch(`/api/products/${params.id}`);
+                const tenant = getTenantContext(getSessionUser());
+                if (!tenant) {
+                    router.push("/");
+                    return;
+                }
+                const res = await fetch(`/api/products/${params.id}?tenantId=${encodeURIComponent(tenant.tenantId)}`);
                 if (!res.ok) throw new Error("Produk tidak ditemukan");
                 const data = (await res.json()) as ProductDetail;
                 setForm({
@@ -87,12 +93,19 @@ export default function ProductDetailPage() {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        const tenant = getTenantContext(getSessionUser());
+        if (!tenant) {
+            alert("Silakan login dulu.");
+            router.push("/");
+            return;
+        }
         try {
             setSaving(true);
             const res = await fetch(`/api/products/${params.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    tenantId: tenant.tenantId,
                     name: form.name,
                     price: Number(form.price),
                     stock: Number(form.stock),

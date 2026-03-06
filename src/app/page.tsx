@@ -5,7 +5,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import styles from "./page.module.css";
 import { Languages, ShieldCheck, Box, Download, Briefcase, Ticket, LogOut, Store, Package } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { clearSessionUser, getSessionUser, getUsers, saveUsers, setSessionUser, SessionUser } from "@/lib/local-auth";
+import { clearSessionUser, getSessionUser, setSessionUser, SessionUser } from "@/lib/local-auth";
 
 export default function LandingPage() {
   const { language, setLanguage, t } = useLanguage();
@@ -54,21 +54,22 @@ export default function LandingPage() {
           return;
         }
 
-        const users = getUsers();
         const email = emailOrPhone.trim().toLowerCase();
-        const exists = users.some((u) => u.email === email);
-        if (exists) {
-          setErrorMsg("Email sudah terdaftar.");
+        const registerRes = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name.trim(),
+            email,
+            password,
+            role: authType,
+          }),
+        });
+        const registerData = await registerRes.json();
+        if (!registerRes.ok) {
+          setErrorMsg(registerData?.error || "Gagal register.");
           return;
         }
-
-        users.push({
-          name: name.trim(),
-          email,
-          password,
-          role: authType,
-        });
-        saveUsers(users);
 
         setAuthMode("login");
         setName("");
@@ -77,26 +78,26 @@ export default function LandingPage() {
         return;
       }
 
-      const users = getUsers();
       const email = emailOrPhone.trim().toLowerCase();
-      const matched = users.find((u) => u.email === email && u.password === password);
-      if (!matched) {
-        setErrorMsg("Email atau password salah / akun belum terdaftar.");
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const loginData = await loginRes.json();
+      if (!loginRes.ok) {
+        setErrorMsg(loginData?.error || "Email atau password salah / akun belum terdaftar.");
         return;
       }
       const loggedInUser: SessionUser = {
-        name: matched.name,
-        email: matched.email,
-        role: matched.role,
+        name: loginData.name,
+        email: loginData.email,
+        role: loginData.role,
       };
       setSessionUser(loggedInUser);
       setSessionUserState(loggedInUser);
 
-      if (matched.role === "merchant") {
-        router.push(redirectTo || "/pos");
-      } else {
-        router.push(redirectTo || "/products");
-      }
+      router.push(redirectTo || "/");
     } catch {
       setErrorMsg("Terjadi gangguan jaringan/server.");
     } finally {
