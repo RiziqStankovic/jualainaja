@@ -1,5 +1,8 @@
-import { PrismaClient } from '@prisma/client'
+import prismaPkg from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const PrismaClient = (prismaPkg as unknown as { PrismaClient: new (args?: unknown) => any }).PrismaClient;
 
 const prismaClientSingleton = () => {
     const connectionString = process.env.DATABASE_URL;
