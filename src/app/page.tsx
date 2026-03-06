@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import styles from "./page.module.css";
 import { Languages, ShieldCheck, Box, Download, Briefcase, Ticket, LogOut, Store, Package } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { clearSessionUser, getSessionUser, getUsers, saveUsers, setSessionUser, SessionUser } from "@/lib/local-auth";
 
 export default function LandingPage() {
@@ -17,16 +17,21 @@ export default function LandingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [sessionUser, setSessionUserState] = useState<SessionUser | null>(() => getSessionUser());
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect");
 
   useEffect(() => {
-    const requestedMode = searchParams.get("mode");
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const requestedMode = params.get("mode");
+    const requestedRedirect = params.get("redirect");
     if (requestedMode === "register" || requestedMode === "login") {
       setAuthMode(requestedMode);
     }
-  }, [searchParams]);
+    if (requestedRedirect) {
+      setRedirectTo(requestedRedirect);
+    }
+  }, []);
 
   const toggleLanguage = () => {
     setLanguage(language === "id" ? "en" : "id");
