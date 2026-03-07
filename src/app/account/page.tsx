@@ -25,6 +25,14 @@ type AndroidResult<T = unknown> = {
     devices?: T;
 } & Record<string, unknown>;
 
+type AndroidBridge = Record<string, (...args: unknown[]) => string>;
+
+declare global {
+    interface Window {
+        Android?: AndroidBridge;
+    }
+}
+
 export default function AccountPage() {
     const router = useRouter();
     const [sessionUser, setSessionUser] = useState<SessionUser | null>(() => getSessionUser());
@@ -41,14 +49,14 @@ export default function AccountPage() {
     const [hasAndroidBridge, setHasAndroidBridge] = useState(false);
     const [btStatus, setBtStatus] = useState<BluetoothStatus | null>(null);
     const [btDevices, setBtDevices] = useState<PairedDevice[]>([]);
-    const [btLoading, setBtLoading] = useState(false);
+    const [btConnectingAddress, setBtConnectingAddress] = useState<string | null>(null);
     const [btRefreshing, setBtRefreshing] = useState(false);
     const [btError, setBtError] = useState<string | null>(null);
     const [btInfo, setBtInfo] = useState<string | null>(null);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const hasBridge = typeof (window as any).Android !== "undefined";
+        const hasBridge = typeof window.Android !== "undefined";
         setHasAndroidBridge(hasBridge);
 
         if (!hasBridge) return;
@@ -60,10 +68,10 @@ export default function AccountPage() {
 
     const callAndroid = (method: string, ...args: unknown[]): string | null => {
         if (typeof window === "undefined") return null;
-        const android = (window as any).Android;
+        const android = window.Android;
         if (!android || typeof android[method] !== "function") return null;
         try {
-            return (android as any)[method](...args);
+            return (android as AndroidBridge)[method](...args);
         } catch {
             return null;
         }
@@ -98,7 +106,10 @@ export default function AccountPage() {
         }
     };
 
+    const isBtBusy = btRefreshing || btConnectingAddress !== null;
+
     const handleRefreshAll = () => {
+        if (isBtBusy) return;
         setBtRefreshing(true);
         setBtError(null);
         setBtInfo(null);
@@ -111,7 +122,8 @@ export default function AccountPage() {
     };
 
     const handleConnectDevice = (address: string) => {
-        setBtLoading(true);
+        if (isBtBusy) return;
+        setBtConnectingAddress(address);
         setBtError(null);
         setBtInfo(null);
         try {
@@ -130,12 +142,13 @@ export default function AccountPage() {
         } catch {
             setBtError("Terjadi kesalahan saat menyambungkan ke perangkat.");
         } finally {
-            setBtLoading(false);
+            setBtConnectingAddress(null);
         }
     };
 
     const handleDisconnect = () => {
-        setBtLoading(true);
+        if (isBtBusy) return;
+        setBtConnectingAddress("__disconnect__");
         setBtError(null);
         setBtInfo(null);
         try {
@@ -154,7 +167,7 @@ export default function AccountPage() {
         } catch {
             setBtError("Terjadi kesalahan saat memutus sambungan.");
         } finally {
-            setBtLoading(false);
+            setBtConnectingAddress(null);
         }
     };
 
@@ -228,14 +241,15 @@ export default function AccountPage() {
                                 type="button"
                                 className={styles.btSecondaryBtn}
                                 onClick={handleOpenBtSettings}
+                                disabled={isBtBusy}
                             >
                                 Pengaturan Bluetooth HP
                             </button>
                             <button
                                 type="button"
-                                className={styles.btRefreshBtn}
+                                className={`${styles.btRefreshBtn} ${btRefreshing ? styles.btNoAnim : ""}`}
                                 onClick={handleRefreshAll}
-                                disabled={btRefreshing || btLoading}
+                                disabled={isBtBusy}
                             >
                                 {btRefreshing ? "Memuat..." : "Segarkan"}
                             </button>
@@ -279,11 +293,13 @@ export default function AccountPage() {
                         {btStatus?.connected && (
                             <button
                                 type="button"
-                                className={styles.btSecondaryBtn}
+                                className={`${styles.btSecondaryBtn} ${
+                                    btConnectingAddress === "__disconnect__" ? styles.btNoAnim : ""
+                                }`}
                                 onClick={handleDisconnect}
-                                disabled={btLoading || btRefreshing}
+                                disabled={isBtBusy}
                             >
-                                Putuskan sambungan
+                                {btConnectingAddress === "__disconnect__" ? "Memutuskan..." : "Putuskan sambungan"}
                             </button>
                         )}
 
@@ -302,6 +318,7 @@ export default function AccountPage() {
                                     {btDevices.map((device) => {
                                         const isActive =
                                             btStatus?.connected && btStatus.lastDeviceAddress === device.address;
+                                        const isConnecting = btConnectingAddress === device.address;
                                         return (
                                             <li key={device.address} className={styles.btDeviceItem}>
                                                 <div className={styles.btDeviceInfo}>
@@ -317,13 +334,13 @@ export default function AccountPage() {
                                                     type="button"
                                                     className={`${styles.btConnectBtn} ${
                                                         isActive ? styles.btConnectBtnActive : ""
-                                                    }`}
+                                                    } ${isConnecting ? styles.btNoAnim : ""}`}
                                                     onClick={() => handleConnectDevice(device.address)}
-                                                    disabled={btLoading || isActive}
+                                                    disabled={isBtBusy || isActive}
                                                 >
                                                     {isActive
                                                         ? "Terhubung"
-                                                        : btLoading
+                                                        : isConnecting
                                                           ? "Menyambungkan..."
                                                           : "Sambungkan"}
                                                 </button>
