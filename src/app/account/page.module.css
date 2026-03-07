@@ -144,3 +144,190 @@
     font-weight: 800;
     color: #0f172a;
 }
+
+/* Bluetooth section */
+.btSection {
+    margin-top: 24px;
+    padding: 16px 14px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+    border: 1px solid #dbeafe;
+}
+
+.btHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.btHeaderTitle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #0f172a;
+}
+
+.btHeaderTitle h3 {
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.btHeaderActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btSecondaryBtn {
+    border: none;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #e5e7eb;
+    color: #111827;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btRefreshBtn {
+    border: none;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #1d4ed8;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.btHint {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.btStatusRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.btBadge {
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.btBadgeOk {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.btBadgeWarn {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.btBadgeNeutral {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.btError {
+    font-size: 12px;
+    color: #b91c1c;
+    margin-bottom: 6px;
+}
+
+.btInfo {
+    font-size: 12px;
+    color: #15803d;
+    margin-bottom: 6px;
+}
+
+.btDevicesCard {
+    margin-top: 4px;
+    padding: 10px;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px dashed #bfdbfe;
+}
+
+.btDevicesTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.btDevicesEmpty {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.btDevicesList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.btDeviceItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.btDeviceInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.btDeviceNameRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btDeviceName {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.btDeviceActiveBadge {
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.btDeviceAddress {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.btConnectBtn {
+    border: none;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #0d9488;
+    color: #ffffff;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btConnectBtnActive {
+    background: #16a34a;
+}
