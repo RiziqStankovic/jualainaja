@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bluetooth, LogOut, ShieldAlert, UserCircle } from "lucide-react";
 import { clearSessionUser, getPurchaseHistory, getSalesHistory, getSessionUser, SessionUser } from "@/lib/local-auth";
@@ -10,6 +10,8 @@ type BluetoothStatus = {
     supported: boolean;
     enabled: boolean;
     lastDeviceAddress?: string;
+    connectedAddresses?: string[];
+    appConnected?: boolean;
     connected: boolean;
 };
 
@@ -26,6 +28,68 @@ type AndroidResult<T = unknown> = {
 } & Record<string, unknown>;
 
 type AndroidBridge = Record<string, (...args: unknown[]) => string>;
+
+type ReceiptSettings = {
+    storeName: string;
+    storeAddress: string;
+    footerText: string;
+    cashierName: string;
+    paperWidth: 32 | 48;
+    feed: number;
+    cut: boolean;
+    showDate: boolean;
+};
+
+const DEFAULT_RECEIPT_SETTINGS: ReceiptSettings = {
+    storeName: "JualinAja Store",
+    storeAddress: "Jl. Contoh No. 1, Jakarta",
+    footerText: "Terima kasih sudah berbelanja",
+    cashierName: "Kasir",
+    paperWidth: 32,
+    feed: 3,
+    cut: false,
+    showDate: true
+};
+
+const RECEIPT_SETTINGS_KEY = "jualinaja_receipt_settings_v1";
+
+const previewTwoCol = (left: string, right: string, width: number) => {
+    if (!right) return left;
+    const maxLeft = Math.max(1, width - right.length - 1);
+    const safeLeft = left.length > maxLeft ? left.slice(0, maxLeft) : left;
+    const spaces = Math.max(1, width - safeLeft.length - right.length);
+    return `${safeLeft}${" ".repeat(spaces)}${right}`;
+};
+
+const wrapPreview = (text: string, width: number) => {
+    const rows: string[] = [];
+    for (const raw of text.replace(/\r/g, "").split("\n")) {
+        if (raw.length <= width) {
+            rows.push(raw);
+            continue;
+        }
+        let current = "";
+        for (const word of raw.split(" ")) {
+            if (!word) continue;
+            const candidate = current ? `${current} ${word}` : word;
+            if (candidate.length <= width) {
+                current = candidate;
+            } else {
+                if (current) rows.push(current);
+                if (word.length <= width) {
+                    current = word;
+                } else {
+                    for (let i = 0; i < word.length; i += width) {
+                        rows.push(word.slice(i, i + width));
+                    }
+                    current = "";
+                }
+            }
+        }
+        if (current) rows.push(current);
+    }
+    return rows.length > 0 ? rows : [""];
+};
 
 declare global {
     interface Window {
@@ -53,6 +117,17 @@ export default function AccountPage() {
     const [btRefreshing, setBtRefreshing] = useState(false);
     const [btError, setBtError] = useState<string | null>(null);
     const [btInfo, setBtInfo] = useState<string | null>(null);
+    const [receiptSettings, setReceiptSettings] = useState<ReceiptSettings>(DEFAULT_RECEIPT_SETTINGS);
+    const [receiptSavedInfo, setReceiptSavedInfo] = useState<string | null>(null);
+    const [isPaperWidthOpen, setIsPaperWidthOpen] = useState(false);
+    const paperWidthDropdownRef = useRef<HTMLDivElement | null>(null);
+    const connectedAddressSet = useMemo(
+        () => new Set((btStatus?.connectedAddresses ?? []).map((address) => address.toUpperCase())),
+        [btStatus?.connectedAddresses]
+    );
+    const hasConnectedDevice = btStatus
+        ? connectedAddressSet.size > 0 || btStatus.connected || btStatus.appConnected === true
+        : false;
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -65,6 +140,62 @@ export default function AccountPage() {
         refreshPairedDevices();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sessionUser?.email]);
+
+    useEffect(() => {
+        if (!hasAndroidBridge) return;
+
+        const refreshOnFocus = () => {
+            refreshBluetoothStatus();
+            refreshPairedDevices();
+        };
+
+        window.addEventListener("focus", refreshOnFocus);
+        document.addEventListener("visibilitychange", refreshOnFocus);
+
+        return () => {
+            window.removeEventListener("focus", refreshOnFocus);
+            document.removeEventListener("visibilitychange", refreshOnFocus);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasAndroidBridge]);
+
+    useEffect(() => {
+        if (!sessionUser?.email) return;
+        try {
+            const raw = localStorage.getItem(`${RECEIPT_SETTINGS_KEY}:${sessionUser.email}`);
+            if (!raw) {
+                setReceiptSettings(DEFAULT_RECEIPT_SETTINGS);
+                return;
+            }
+            const parsed = JSON.parse(raw) as Partial<ReceiptSettings>;
+            setReceiptSettings({
+                ...DEFAULT_RECEIPT_SETTINGS,
+                ...parsed,
+                paperWidth: parsed.paperWidth === 48 ? 48 : 32,
+                feed: Math.max(0, Math.min(8, Number(parsed.feed ?? DEFAULT_RECEIPT_SETTINGS.feed)))
+            });
+        } catch {
+            setReceiptSettings(DEFAULT_RECEIPT_SETTINGS);
+        }
+    }, [sessionUser?.email]);
+
+    useEffect(() => {
+        if (!isPaperWidthOpen) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (!paperWidthDropdownRef.current) return;
+            if (!paperWidthDropdownRef.current.contains(event.target as Node)) {
+                setIsPaperWidthOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [isPaperWidthOpen]);
+
+    useEffect(() => {
+        setIsPaperWidthOpen(false);
+    }, [receiptSettings.paperWidth]);
 
     const callAndroid = (method: string, ...args: unknown[]): string | null => {
         if (typeof window === "undefined") return null;
@@ -194,6 +325,45 @@ export default function AccountPage() {
         router.push("/");
     };
 
+    const handleReceiptChange =
+        <K extends keyof ReceiptSettings>(key: K) =>
+        (value: ReceiptSettings[K]) => {
+            setReceiptSettings((prev) => ({ ...prev, [key]: value }));
+            setReceiptSavedInfo(null);
+        };
+
+    const handleSaveReceiptSettings = () => {
+        if (!sessionUser?.email) return;
+        localStorage.setItem(`${RECEIPT_SETTINGS_KEY}:${sessionUser.email}`, JSON.stringify(receiptSettings));
+        setReceiptSavedInfo("Pengaturan struk berhasil disimpan.");
+    };
+
+    const handleResetReceiptSettings = () => {
+        setReceiptSettings(DEFAULT_RECEIPT_SETTINGS);
+        setReceiptSavedInfo("Pengaturan struk direset ke default. Klik Simpan untuk menyimpan.");
+    };
+
+    const receiptPreviewLines = useMemo(() => {
+        const width = receiptSettings.paperWidth;
+        const now = new Date();
+        const lines: string[] = [];
+        lines.push(...wrapPreview(receiptSettings.storeName.toUpperCase(), width));
+        lines.push(...wrapPreview(receiptSettings.storeAddress, width));
+        if (receiptSettings.showDate) {
+            lines.push(previewTwoCol("Tanggal", now.toLocaleString("id-ID"), width));
+        }
+        lines.push(previewTwoCol("Kasir", receiptSettings.cashierName, width));
+        lines.push("-".repeat(width));
+        lines.push(...wrapPreview("Es Kopi Susu", width));
+        lines.push(previewTwoCol("2 x 15000", "30000", width));
+        lines.push(...wrapPreview("Roti Bakar Coklat", width));
+        lines.push(previewTwoCol("1 x 12000", "12000", width));
+        lines.push("-".repeat(width));
+        lines.push(previewTwoCol("TOTAL", "42000", width));
+        lines.push(...wrapPreview(receiptSettings.footerText, width));
+        return lines;
+    }, [receiptSettings]);
+
     if (!sessionUser) {
         return (
             <div className={styles.container}>
@@ -282,15 +452,19 @@ export default function AccountPage() {
                                 </span>
                                 <span
                                     className={`${styles.btBadge} ${
-                                        btStatus.connected ? styles.btBadgeOk : styles.btBadgeNeutral
+                                        hasConnectedDevice ? styles.btBadgeOk : styles.btBadgeNeutral
                                     }`}
                                 >
-                                    {btStatus.connected ? "Sudah tersambung" : "Belum tersambung"}
+                                    {hasConnectedDevice
+                                        ? connectedAddressSet.size > 1
+                                            ? `${connectedAddressSet.size} perangkat tersambung`
+                                            : "Sudah tersambung"
+                                        : "Belum tersambung"}
                                 </span>
                             </div>
                         )}
 
-                        {btStatus?.connected && (
+                        {btStatus?.appConnected && (
                             <button
                                 type="button"
                                 className={`${styles.btSecondaryBtn} ${
@@ -316,8 +490,11 @@ export default function AccountPage() {
                             ) : (
                                 <ul className={styles.btDevicesList}>
                                     {btDevices.map((device) => {
-                                        const isActive =
-                                            btStatus?.connected && btStatus.lastDeviceAddress === device.address;
+                                        const deviceAddress = device.address.toUpperCase();
+                                        const isConnectedBySystem = connectedAddressSet.has(deviceAddress);
+                                        const isConnectedByApp =
+                                            btStatus?.appConnected && btStatus.lastDeviceAddress === device.address;
+                                        const isActive = isConnectedBySystem || isConnectedByApp;
                                         const isConnecting = btConnectingAddress === device.address;
                                         return (
                                             <li key={device.address} className={styles.btDeviceItem}>
@@ -352,6 +529,161 @@ export default function AccountPage() {
                         </div>
                     </>
                 )}
+            </div>
+
+            <div className={styles.receiptSection}>
+                <div className={styles.receiptHeader}>
+                    <h3>Custom Setting Struk</h3>
+                    <p>Atur format dasar struk lalu lihat preview langsung.</p>
+                </div>
+
+                <div className={styles.receiptGrid}>
+                    <div className={styles.receiptForm}>
+                        <label className={styles.receiptField}>
+                            <span>Nama Toko</span>
+                            <input
+                                type="text"
+                                value={receiptSettings.storeName}
+                                onChange={(e) => handleReceiptChange("storeName")(e.target.value)}
+                            />
+                        </label>
+
+                        <label className={styles.receiptField}>
+                            <span>Alamat Toko</span>
+                            <textarea
+                                rows={2}
+                                value={receiptSettings.storeAddress}
+                                onChange={(e) => handleReceiptChange("storeAddress")(e.target.value)}
+                            />
+                        </label>
+
+                        <label className={styles.receiptField}>
+                            <span>Nama Kasir</span>
+                            <input
+                                type="text"
+                                value={receiptSettings.cashierName}
+                                onChange={(e) => handleReceiptChange("cashierName")(e.target.value)}
+                            />
+                        </label>
+
+                        <label className={styles.receiptField}>
+                            <span>Footer</span>
+                            <textarea
+                                rows={2}
+                                value={receiptSettings.footerText}
+                                onChange={(e) => handleReceiptChange("footerText")(e.target.value)}
+                            />
+                        </label>
+
+                        <div className={styles.receiptInlineFields}>
+                            <label className={styles.receiptField}>
+                                <span>Lebar Kertas</span>
+                                <div className={styles.receiptSelectWrap} ref={paperWidthDropdownRef}>
+                                    <button
+                                        type="button"
+                                        className={`${styles.receiptSelectButton} ${
+                                            isPaperWidthOpen ? styles.receiptSelectButtonOpen : ""
+                                        }`}
+                                        onClick={() => setIsPaperWidthOpen((prev) => !prev)}
+                                    >
+                                        <span>
+                                            {receiptSettings.paperWidth === 48
+                                                ? "80mm (48 kolom)"
+                                                : "58mm (32 kolom)"}
+                                        </span>
+                                        <span
+                                            className={`${styles.receiptSelectChevron} ${
+                                                isPaperWidthOpen ? styles.receiptSelectChevronOpen : ""
+                                            }`}
+                                        />
+                                    </button>
+                                    {isPaperWidthOpen && (
+                                        <div className={styles.receiptSelectMenu}>
+                                            <button
+                                                type="button"
+                                                className={`${styles.receiptSelectOption} ${
+                                                    receiptSettings.paperWidth === 32 ? styles.receiptSelectOptionActive : ""
+                                                }`}
+                                                onClick={() => {
+                                                    handleReceiptChange("paperWidth")(32);
+                                                    setIsPaperWidthOpen(false);
+                                                }}
+                                            >
+                                                58mm (32 kolom)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`${styles.receiptSelectOption} ${
+                                                    receiptSettings.paperWidth === 48 ? styles.receiptSelectOptionActive : ""
+                                                }`}
+                                                onClick={() => {
+                                                    handleReceiptChange("paperWidth")(48);
+                                                    setIsPaperWidthOpen(false);
+                                                }}
+                                            >
+                                                80mm (48 kolom)
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </label>
+                            <label className={styles.receiptField}>
+                                <span>Feed Akhir</span>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={8}
+                                    value={receiptSettings.feed}
+                                    onChange={(e) =>
+                                        handleReceiptChange("feed")(Math.max(0, Math.min(8, Number(e.target.value))))
+                                    }
+                                />
+                            </label>
+                        </div>
+
+                        <label className={styles.receiptCheck}>
+                            <input
+                                type="checkbox"
+                                checked={receiptSettings.showDate}
+                                onChange={(e) => handleReceiptChange("showDate")(e.target.checked)}
+                            />
+                            Tampilkan tanggal di struk
+                        </label>
+
+                        <label className={styles.receiptCheck}>
+                            <input
+                                type="checkbox"
+                                checked={receiptSettings.cut}
+                                onChange={(e) => handleReceiptChange("cut")(e.target.checked)}
+                            />
+                            Gunakan perintah cut kertas
+                        </label>
+
+                        <div className={styles.receiptActions}>
+                            <button type="button" className={styles.receiptSaveBtn} onClick={handleSaveReceiptSettings}>
+                                Simpan Setting
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.receiptResetBtn}
+                                onClick={handleResetReceiptSettings}
+                            >
+                                Reset Default
+                            </button>
+                        </div>
+
+                        {receiptSavedInfo && <p className={styles.receiptInfo}>{receiptSavedInfo}</p>}
+                    </div>
+
+                    <div className={styles.receiptPreviewCard}>
+                        <p className={styles.receiptPreviewTitle}>Preview Struk</p>
+                        <pre className={styles.receiptPreviewText}>{receiptPreviewLines.join("\n")}</pre>
+                        <p className={styles.receiptPreviewMeta}>
+                            Width: {receiptSettings.paperWidth} kolom | Feed: {receiptSettings.feed} | Cut:{" "}
+                            {receiptSettings.cut ? "On" : "Off"}
+                        </p>
+                    </div>
+                </div>
             </div>
 
             <div className={styles.historySection}>

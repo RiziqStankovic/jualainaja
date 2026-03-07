@@ -361,6 +361,249 @@
     background: #16a34a;
 }
 
+/* Receipt section */
+.receiptSection {
+    margin-top: 24px;
+    padding: 18px 16px;
+    border-radius: 20px;
+    border: 1px solid #dbeafe;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.receiptHeader h3 {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.receiptHeader p {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.receiptGrid {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+}
+
+.receiptForm {
+    border: 1px dashed #bfdbfe;
+    border-radius: 14px;
+    padding: 12px;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.receiptField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.receiptField span {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.receiptField input,
+.receiptField textarea,
+.receiptField select {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 10px 11px;
+    font-size: 13px;
+    color: #0f172a;
+    background: #ffffff;
+}
+
+.receiptField input:focus,
+.receiptField textarea:focus,
+.receiptField select:focus {
+    outline: none;
+    border-color: #14b8a6;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.14);
+}
+
+.receiptSelectWrap {
+    position: relative;
+}
+
+.receiptSelectButton {
+    width: 100%;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.receiptSelectButtonOpen {
+    border-color: #14b8a6;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.14);
+}
+
+.receiptSelectChevron {
+    width: 9px;
+    height: 9px;
+    border-right: 2px solid #0f172a;
+    border-bottom: 2px solid #0f172a;
+    transform: rotate(45deg);
+    transition: transform 0.15s ease;
+    margin-top: -4px;
+}
+
+.receiptSelectChevronOpen {
+    transform: rotate(-135deg);
+    margin-top: 2px;
+}
+
+.receiptSelectMenu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 12px 22px rgba(15, 23, 42, 0.12);
+    padding: 6px;
+}
+
+.receiptSelectOption {
+    width: 100%;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    text-align: left;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    cursor: pointer;
+}
+
+.receiptSelectOption:hover {
+    background: #f1f5f9;
+}
+
+.receiptSelectOptionActive {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.receiptInlineFields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 120px);
+    gap: 8px;
+}
+
+.receiptCheck {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #334155;
+}
+
+.receiptActions {
+    margin-top: 6px;
+    display: flex;
+    gap: 8px;
+}
+
+.receiptSaveBtn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #0d9488;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.receiptResetBtn {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.receiptInfo {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #15803d;
+}
+
+.receiptPreviewCard {
+    border: 1px dashed #bfdbfe;
+    border-radius: 14px;
+    padding: 12px;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.receiptPreviewTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 8px;
+    width: 100%;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+}
+
+.receiptPreviewText {
+    margin: 0;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 11px;
+    line-height: 1.45;
+    white-space: pre;
+    word-break: normal;
+    font-family: "Consolas", "Courier New", monospace;
+    width: fit-content;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.receiptPreviewMeta {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #64748b;
+    width: 100%;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+}
+
 @media (max-width: 640px) {
     .btHeader {
         flex-direction: column;
@@ -378,5 +621,13 @@
     .btConnectBtn {
         min-width: 104px;
         align-self: flex-end;
+    }
+
+    .receiptInlineFields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .receiptActions {
+        flex-wrap: wrap;
     }
 }
