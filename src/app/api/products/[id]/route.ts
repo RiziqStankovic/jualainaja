@@ -1,17 +1,25 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { buildProductDescription, extractProductMeta, extractProductText, ProductStatus } from "@/lib/product-meta";
+import { buildProductDescription, extractProductMeta, extractProductText, ProductStatus, resolveProductStatus } from "@/lib/product-meta";
 import { buildProductSlug, slugify } from "@/lib/public-link";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const VALID_STATUS: ProductStatus[] = ["Aktif", "Habis", "Hold", "Expired", "Tidak Aktif"];
 
 const formatProduct = <T extends { description?: string | null; tenant?: { name?: string | null } | null; tenantId?: string }>(product: T) => {
     const meta = extractProductMeta(product.description);
     const storeSlug = slugify(product.tenant?.name || "") || slugify(product.tenantId || "") || "toko";
+    const effectiveStatus = resolveProductStatus(
+        Number((product as { stock?: number }).stock ?? 0),
+        meta.status || null,
+        meta.statusDate || null
+    );
     return {
         ...product,
         description: extractProductText(product.description),
-        status: meta.status || null,
+        status: effectiveStatus,
         statusDate: meta.statusDate || null,
         isPublic: meta.isPublic ?? true,
         storeSlug,
@@ -57,7 +65,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
         const ownedProduct = await prisma.posProduct.findUnique({
             where: { id },
-            select: { id: true, tenantId: true, description: true },
+            select: { id: true, tenantId: true, description: true, stock: true },
         });
         if (!ownedProduct) {
             return NextResponse.json({ error: "Produk tidak ditemukan." }, { status: 404 });
@@ -109,7 +117,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             updateData.stock = stock;
         }
 
-        if (body?.description !== undefined || body?.status !== undefined || body?.statusDate !== undefined || body?.isPublic !== undefined) {
+        if (body?.description !== undefined || body?.status !== undefined || body?.statusDate !== undefined || body?.isPublic !== undefined || body?.stock !== undefined) {
             const currentMeta = extractProductMeta(ownedProduct.description);
             const currentText = extractProductText(ownedProduct.description);
             const requestedStatus =
@@ -133,13 +141,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
                 typeof body?.isPublic === "boolean"
                     ? body.isPublic
                     : currentMeta.isPublic ?? true;
+            const nextStock = updateData.stock ?? ownedProduct.stock;
+            const effectiveStatus = resolveProductStatus(
+                Number(nextStock),
+                requestedStatus === undefined ? currentMeta.status : requestedStatus,
+                statusDate
+            );
 
             updateData.description = buildProductDescription(
                 typeof body?.description === "string" ? body.description : currentText,
                 {
-                status: requestedStatus === undefined ? currentMeta.status : requestedStatus,
-                statusDate,
-                isPublic,
+                    status: effectiveStatus,
+                    statusDate,
+                    isPublic,
                 }
             );
         }

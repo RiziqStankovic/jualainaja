@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { buildProductDescription, extractProductMeta, extractProductText, ProductStatus } from '@/lib/product-meta';
+import { buildProductDescription, extractProductMeta, extractProductText, ProductStatus, resolveProductStatus } from '@/lib/product-meta';
 import { buildProductSlug, slugify } from '@/lib/public-link';
 
+export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
 
 const SORT_MAP: Record<string, { field: 'createdAt' | 'price' | 'name'; direction: 'asc' | 'desc' }> = {
@@ -19,10 +20,15 @@ const VALID_STATUS: ProductStatus[] = ["Aktif", "Habis", "Hold", "Expired", "Tid
 const formatProduct = <T extends { description?: string | null; tenant?: { name?: string | null } | null; tenantId?: string }>(product: T) => {
     const meta = extractProductMeta(product.description);
     const storeSlug = slugify(product.tenant?.name || "") || slugify(product.tenantId || "") || "toko";
+    const effectiveStatus = resolveProductStatus(
+        Number((product as { stock?: number }).stock ?? 0),
+        meta.status || null,
+        meta.statusDate || null
+    );
     return {
         ...product,
         description: extractProductText(product.description),
-        status: meta.status || null,
+        status: effectiveStatus,
         statusDate: meta.statusDate || null,
         isPublic: meta.isPublic ?? true,
         storeSlug,
@@ -111,8 +117,10 @@ export async function POST(request: Request) {
         }
         const normalizedStatus = VALID_STATUS.includes(status) ? status : undefined;
         const normalizedDate = typeof statusDate === "string" && statusDate.trim() ? statusDate : null;
+        const parsedStock = Number(stock);
+        const effectiveStatus = resolveProductStatus(parsedStock, normalizedStatus, normalizedDate);
         const fullDescription = buildProductDescription(description, {
-            status: normalizedStatus,
+            status: effectiveStatus,
             statusDate: normalizedDate,
             isPublic: typeof isPublic === "boolean" ? isPublic : true,
         });
@@ -140,7 +148,7 @@ export async function POST(request: Request) {
             data: {
                 name,
                 price: Number(price),
-                stock: Number(stock),
+                stock: parsedStock,
                 type,
                 categoryId: categoryId || null,
                 tenantId,

@@ -67,3 +67,26 @@ export function buildProductDescription(text: string | null | undefined, meta: P
     if (cleanText) return cleanText;
     return metaPart;
 }
+
+export function resolveProductStatus(
+    stock: number,
+    status?: ProductStatus | null,
+    statusDate?: string | null
+): ProductStatus {
+    if (statusDate) {
+        const target = new Date(statusDate);
+        if (!Number.isNaN(target.getTime()) && target.getTime() < Date.now()) {
+            return "Expired";
+        }
+    }
+
+    if (stock <= 0) {
+        return "Habis";
+    }
+
+    if (status === "Hold" || status === "Tidak Aktif") {
+        return status;
+    }
+
+    return "Aktif";
+}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import styles from "./products.module.css";
 import { Search, Filter, RefreshCw, Plus, PackageOpen, LayoutGrid, Tag, CalendarDays, Save, Share2, ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { ProductStatus } from "@/lib/product-meta";
+import { resolveProductStatus, type ProductStatus } from "@/lib/product-meta";
 import { getSessionUser, getTenantContext } from "@/lib/local-auth";
 
 type Product = {
@@ -63,19 +63,7 @@ async function fetchProductsWithDedupe(tenantId: string, tenantName?: string): P
 }
 
 function getDerivedStatus(product: Product): ProductStatus {
-    if (product.status) return product.status;
-
-    if (product.statusDate) {
-        const target = new Date(product.statusDate);
-        if (!Number.isNaN(target.getTime()) && target.getTime() < Date.now()) {
-            return "Expired";
-        }
-    }
-
-    const dayDiff = (Date.now() - new Date(product.updatedAt).getTime()) / (1000 * 60 * 60 * 24);
-    if (product.stock <= 0 && dayDiff > 30) return "Tidak Aktif";
-    if (product.stock <= 0) return "Habis";
-    return "Aktif";
+    return resolveProductStatus(product.stock, product.status, product.statusDate);
 }
 
 function toDateInputValue(value?: string | null): string {

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { extractProductMeta, ProductStatus } from "@/lib/product-meta";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 type CheckoutItem = {
     id: string;
     quantity: number;

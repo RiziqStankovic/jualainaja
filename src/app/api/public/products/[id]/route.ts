@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { extractProductMeta, extractProductText, ProductStatus } from "@/lib/product-meta";
+import { extractProductMeta, extractProductText, ProductStatus, resolveProductStatus } from "@/lib/product-meta";
 import { buildProductSlug, extractUniquePart, slugify } from "@/lib/public-link";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const getProductStatus = (stock: number, status?: ProductStatus | null, statusDate?: string | null): ProductStatus => {
-    if (status) return status;
-    if (stock <= 0) return "Habis";
-    if (statusDate) {
-        const date = new Date(statusDate);
-        if (!Number.isNaN(date.getTime()) && date.getTime() < Date.now()) return "Expired";
-    }
-    return "Aktif";
+    return resolveProductStatus(stock, status, statusDate);
 };
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
