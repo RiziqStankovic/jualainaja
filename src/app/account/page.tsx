@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bluetooth, LogOut, ShieldAlert, UserCircle } from "lucide-react";
 import { clearSessionUser, getPurchaseHistory, getSalesHistory, getSessionUser, SessionUser } from "@/lib/local-auth";
+import { DEFAULT_RECEIPT_TEMPLATE, PAPER_WIDTH_CHARS, PaperWidth, renderReceiptFromTemplate } from "@/lib/receipt-template";
 import styles from "./page.module.css";
 
 type BluetoothStatus = {
@@ -46,23 +47,19 @@ export default function AccountPage() {
     const [btPrinting, setBtPrinting] = useState(false);
     const [btError, setBtError] = useState<string | null>(null);
     const [btInfo, setBtInfo] = useState<string | null>(null);
-    const [printPreview, setPrintPreview] = useState(() => {
-        const now = new Date();
-        return [
-            "JUALINAJA",
-            "Test Print",
-            "------------------------------",
-            `Waktu: ${now.toLocaleString("id-ID")}`,
-            "Kasir: Demo",
-            "",
-            "1x Kopi Susu      Rp 18.000",
-            "2x Roti Bakar     Rp 30.000",
-            "------------------------------",
-            "TOTAL             Rp 48.000",
-            "",
-            "Terima kasih",
-        ].join("\n");
-    });
+    const [paperWidth, setPaperWidth] = useState<PaperWidth>("58mm");
+    const [sampleNow, setSampleNow] = useState(() => new Date());
+    const [printTemplate, setPrintTemplate] = useState(() => DEFAULT_RECEIPT_TEMPLATE);
+    const templateStorageKey = useMemo(() => {
+        const email = sessionUser?.email || "anon";
+        return `jualinaja.printTemplate.v1:${email}`;
+    }, [sessionUser?.email]);
+    const paperWidthStorageKey = useMemo(() => {
+        const email = sessionUser?.email || "anon";
+        return `jualinaja.printPaperWidth.v1:${email}`;
+    }, [sessionUser?.email]);
+
+    const [templateSavedInfo, setTemplateSavedInfo] = useState<string | null>(null);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -75,6 +72,108 @@ export default function AccountPage() {
         refreshPairedDevices();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sessionUser?.email]);
+
+    // Load template (prioritas: localStorage -> Android storage)
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (!sessionUser) return;
+
+        try {
+            const saved = window.localStorage.getItem(templateStorageKey);
+            if (saved && saved.trim().length > 0) {
+                setPrintTemplate(saved);
+                return;
+            }
+        } catch {
+            // ignore
+        }
+
+        // fallback: ambil dari Android kalau tersedia
+        const raw = callAndroid("getPrintTemplate");
+        if (!raw) return;
+        try {
+            const parsed = JSON.parse(raw) as AndroidResult & { template?: string };
+            const tpl = (parsed as any).template;
+            if (parsed.success && typeof tpl === "string" && tpl.trim().length > 0) {
+                setPrintTemplate(tpl);
+                try {
+                    window.localStorage.setItem(templateStorageKey, tpl);
+                } catch {
+                    // ignore
+                }
+            }
+        } catch {
+            // ignore
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [templateStorageKey, sessionUser?.email, hasAndroidBridge]);
+
+    // Load paper width
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (!sessionUser) return;
+        try {
+            const saved = window.localStorage.getItem(paperWidthStorageKey) as PaperWidth | null;
+            if (saved === "58mm" || saved === "80mm") {
+                setPaperWidth(saved);
+            }
+        } catch {
+            // ignore
+        }
+    }, [paperWidthStorageKey, sessionUser]);
+
+    // Auto-save template ke localStorage & Android (debounce)
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (!sessionUser) return;
+
+        const t = window.setTimeout(() => {
+            try {
+                window.localStorage.setItem(templateStorageKey, printTemplate);
+                setTemplateSavedInfo("Tersimpan");
+            } catch {
+                setTemplateSavedInfo(null);
+            }
+
+            // sync ke Android jika ada
+            callAndroid("setPrintTemplate", printTemplate);
+        }, 300);
+
+        return () => window.clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [printTemplate, templateStorageKey, sessionUser?.email]);
+
+    // Auto-save paper width
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (!sessionUser) return;
+        try {
+            window.localStorage.setItem(paperWidthStorageKey, paperWidth);
+        } catch {
+            // ignore
+        }
+    }, [paperWidth, paperWidthStorageKey, sessionUser]);
+
+    const renderedPreview = useMemo(() => {
+        const widthChars = PAPER_WIDTH_CHARS[paperWidth] ?? PAPER_WIDTH_CHARS["58mm"];
+        return renderReceiptFromTemplate(
+            printTemplate,
+            {
+                storeName: sessionUser?.name || "Toko",
+                cashier: sessionUser?.name || "Kasir",
+                datetime: sampleNow.toLocaleString("id-ID"),
+                paymentMethod: "Tunai",
+                items: [
+                    { name: "Kopi Susu", quantity: 1, price: 18000 },
+                    { name: "Roti Bakar Coklat Keju", quantity: 2, price: 15000 },
+                ],
+                totalAmount: 48000,
+                cashPaid: 50000,
+                changeAmount: 2000,
+            },
+            { widthChars }
+        );
+    }, [paperWidth, printTemplate, sampleNow, sessionUser?.name]);
 
     const callAndroid = (method: string, ...args: unknown[]): string | null => {
         if (typeof window === "undefined") return null;
@@ -198,7 +297,7 @@ export default function AccountPage() {
         setBtError(null);
         setBtInfo(null);
         try {
-            const payload = JSON.stringify({ type: "text", text: printPreview });
+            const payload = JSON.stringify({ type: "text", text: renderedPreview });
             const raw = callAndroid("print", payload);
             if (!raw) {
                 setBtError("Tidak dapat menghubungi bridge Android.");
@@ -377,19 +476,62 @@ export default function AccountPage() {
                         </div>
 
                         <div className={styles.printCard}>
-                            <p className={styles.printTitle}>Test Print (Preview)</p>
+                            <p className={styles.printTitle}>Template Struk</p>
                             <p className={styles.printHint}>
-                                Pastikan printer sudah <b>Terhubung</b>. Kamu bisa ubah teks struk di bawah lalu tekan
-                                “Test Print”.
+                                Atur template menggunakan token seperti <b>{"{{ITEM_LINES}}"}</b>. Bagian di bawah akan
+                                menampilkan preview hasil dan bisa langsung di-test print.
                             </p>
+                            <div className={styles.printMetaRow}>
+                                <span className={styles.printMeta}>
+                                    Template: <b>{templateSavedInfo ?? "Belum tersimpan"}</b>
+                                </span>
+                                <div className={styles.printMetaActions}>
+                                    <button
+                                        type="button"
+                                        className={`${styles.printChip} ${
+                                            paperWidth === "58mm" ? styles.printChipActive : ""
+                                        }`}
+                                        onClick={() => setPaperWidth("58mm")}
+                                        disabled={btPrinting}
+                                    >
+                                        58mm
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`${styles.printChip} ${
+                                            paperWidth === "80mm" ? styles.printChipActive : ""
+                                        }`}
+                                        onClick={() => setPaperWidth("80mm")}
+                                        disabled={btPrinting}
+                                    >
+                                        80mm
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles.printResetBtn}
+                                        onClick={() => {
+                                            window.localStorage.removeItem(templateStorageKey);
+                                            setPrintTemplate(DEFAULT_RECEIPT_TEMPLATE);
+                                        }}
+                                        disabled={btPrinting}
+                                    >
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
 
                             <textarea
                                 className={styles.printTextarea}
-                                value={printPreview}
-                                onChange={(e) => setPrintPreview(e.target.value)}
+                                value={printTemplate}
+                                onChange={(e) => setPrintTemplate(e.target.value)}
                                 rows={10}
                                 spellCheck={false}
                             />
+
+                            <p className={styles.printTitle} style={{ marginTop: 12 }}>
+                                Preview Hasil
+                            </p>
+                            <pre className={styles.printPreviewBox}>{renderedPreview}</pre>
 
                             <div className={styles.printActions}>
                                 <button
@@ -404,14 +546,7 @@ export default function AccountPage() {
                                     type="button"
                                     className={styles.btSecondaryBtn}
                                     onClick={() => {
-                                        const now = new Date();
-                                        setPrintPreview((prev) => {
-                                            // update waktu saja biar cepat
-                                            const lines = prev.split("\n");
-                                            const idx = lines.findIndex((l) => l.startsWith("Waktu: "));
-                                            if (idx >= 0) lines[idx] = `Waktu: ${now.toLocaleString("id-ID")}`;
-                                            return lines.join("\n");
-                                        });
+                                        setSampleNow(new Date());
                                     }}
                                     disabled={btPrinting}
                                 >

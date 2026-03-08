@@ -355,6 +355,55 @@
     line-height: 1.4;
 }
 
+.printMetaRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.printMeta {
+    font-size: 11px;
+    color: #475569;
+}
+
+.printMetaActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.printChip {
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #ffffff;
+    color: #0f172a;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.printChipActive {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+}
+
+.printResetBtn {
+    border: none;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #fee2e2;
+    color: #b91c1c;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
 .printTextarea {
     width: 100%;
     resize: vertical;
@@ -366,6 +415,19 @@
     font-size: 12px;
     color: #0f172a;
     background: #f8fafc;
+}
+
+.printPreviewBox {
+    margin-top: 8px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 12px;
+    background: #0b1220;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .printActions {

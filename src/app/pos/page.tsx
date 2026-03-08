@@ -19,6 +19,7 @@ import {
     List,
 } from "lucide-react";
 import { addSalesHistory, getSessionUser, getTenantContext } from "@/lib/local-auth";
+import { DEFAULT_RECEIPT_TEMPLATE, PAPER_WIDTH_CHARS, PaperWidth, renderReceiptFromTemplate } from "@/lib/receipt-template";
 
 interface Product {
     id: string;
@@ -55,6 +56,9 @@ interface CheckoutResponse {
     updatedProducts: Array<{ id: string; stock: number }>;
     error?: string;
 }
+
+const getPrintTemplateKey = (email?: string | null) => `jualinaja.printTemplate.v1:${email || "anon"}`;
+const getPaperWidthKey = (email?: string | null) => `jualinaja.printPaperWidth.v1:${email || "anon"}`;
 
 const PAGE_SIZE = 8;
 const CACHE_STALE_MS = 20_000;
@@ -446,7 +450,54 @@ export default function POSPage() {
             });
 
             applyStockUpdates(data.updatedProducts || []);
-            alert(`Pembayaran ${paymentMethod === "cash" ? "tunai" : "online"} berhasil.`);
+
+            // Coba print struk pakai template custom (kalau jalan di Android wrapper)
+            try {
+                const android = (window as any).Android;
+                if (android && typeof android.print === "function") {
+                    const user = getSessionUser();
+                    const key = getPrintTemplateKey(user?.email);
+                    const widthKey = getPaperWidthKey(user?.email);
+                    const tpl = window.localStorage.getItem(key) || DEFAULT_RECEIPT_TEMPLATE;
+                    const paper = (window.localStorage.getItem(widthKey) as PaperWidth | null) || "58mm";
+                    const widthChars = PAPER_WIDTH_CHARS[paper] ?? PAPER_WIDTH_CHARS["58mm"];
+
+                    const receiptText = renderReceiptFromTemplate(
+                        tpl,
+                        {
+                        storeName: user?.name || storeName,
+                        cashier: user?.name || "Kasir",
+                        datetime: new Date().toLocaleString("id-ID"),
+                        paymentMethod: paymentMethod === "cash" ? "Tunai" : "Online",
+                        items: cart.map((it) => ({ name: it.name, quantity: it.quantity, price: it.price })),
+                        totalAmount,
+                        cashPaid: paymentMethod === "cash" ? cashPaidNumber : undefined,
+                        changeAmount: paymentMethod === "cash" ? changeAmount : undefined,
+                        },
+                        { widthChars }
+                    );
+
+                    const payload = JSON.stringify({ type: "text", text: receiptText });
+                    const resultRaw = android.print(payload);
+                    let msg = `Pembayaran ${paymentMethod === "cash" ? "tunai" : "online"} berhasil.`;
+                    try {
+                        const parsed = JSON.parse(resultRaw);
+                        if (parsed?.success) {
+                            msg += " Struk dikirim ke printer.";
+                        } else if (parsed?.message) {
+                            msg += ` (Print: ${parsed.message})`;
+                        }
+                    } catch {
+                        // ignore
+                    }
+                    alert(msg);
+                } else {
+                    alert(`Pembayaran ${paymentMethod === "cash" ? "tunai" : "online"} berhasil.`);
+                }
+            } catch {
+                alert(`Pembayaran ${paymentMethod === "cash" ? "tunai" : "online"} berhasil.`);
+            }
+
             clearCart();
             closeCartModal();
         } catch (error) {
