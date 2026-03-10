@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { buildProductDescription, extractProductMeta, extractProductText, ProductStatus, resolveProductStatus } from "@/lib/product-meta";
 import { buildProductSlug, slugify } from "@/lib/public-link";
 
@@ -79,6 +80,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             type?: string;
             price?: number;
             stock?: number;
+            barcode?: string | null;
             description?: string | null;
             imageUrl?: string | null;
         } = {};
@@ -115,6 +117,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
                 return NextResponse.json({ error: "Stok tidak valid." }, { status: 400 });
             }
             updateData.stock = stock;
+        }
+        if (body?.barcode !== undefined) {
+            if (body.barcode === null || body.barcode === "") {
+                updateData.barcode = null;
+            } else if (typeof body.barcode === "string") {
+                updateData.barcode = body.barcode.trim() || null;
+            } else {
+                return NextResponse.json({ error: "Barcode tidak valid." }, { status: 400 });
+            }
         }
 
         if (body?.description !== undefined || body?.status !== undefined || body?.statusDate !== undefined || body?.isPublic !== undefined || body?.stock !== undefined) {
@@ -170,6 +181,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
         return NextResponse.json(formatProduct(updated));
     } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+            const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : String(error.meta?.target || "");
+            if (target.includes("barcode")) {
+                return NextResponse.json({ error: "Barcode sudah dipakai di toko ini." }, { status: 409 });
+            }
+        }
         console.error("Failed to update product:", error);
         return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
     }

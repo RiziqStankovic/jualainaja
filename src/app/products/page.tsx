@@ -10,6 +10,7 @@ import { getSessionUser, getTenantContext } from "@/lib/local-auth";
 type Product = {
     id: string;
     name: string;
+    barcode?: string | null;
     price: number;
     stock: number;
     type: string;
@@ -89,6 +90,7 @@ export default function ProductsPage() {
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [addForm, setAddForm] = useState({
         name: "",
+        barcode: "",
         price: "",
         stock: "",
         type: "Fisik",
@@ -154,7 +156,10 @@ export default function ProductsPage() {
     const filteredProducts = useMemo(() => {
         return products.filter((product) => {
             const statusMatch = getDerivedStatus(product) === activeTab;
-            const searchMatch = product.name.toLowerCase().includes(search.toLowerCase());
+            const q = search.toLowerCase();
+            const searchMatch =
+                product.name.toLowerCase().includes(q) ||
+                (product.barcode || "").toLowerCase().includes(q);
             const typeMatch = activeTypeFilter === "Semua" ? true : product.type === activeTypeFilter;
             return statusMatch && searchMatch && typeMatch;
         });
@@ -233,7 +238,7 @@ export default function ProductsPage() {
             });
             if (!res.ok) throw new Error("Failed to add product");
             setIsAddOpen(false);
-            setAddForm({ name: "", price: "", stock: "", type: "Fisik", status: "Aktif", statusDate: "", description: "", imageUrl: "", isPublic: true });
+            setAddForm({ name: "", barcode: "", price: "", stock: "", type: "Fisik", status: "Aktif", statusDate: "", description: "", imageUrl: "", isPublic: true });
             await fetchProducts();
         } catch (error) {
             console.error(error);
@@ -443,6 +448,12 @@ export default function ProductsPage() {
                                 value={addForm.name}
                                 onChange={(e) => setAddForm((prev) => ({ ...prev, name: e.target.value }))}
                                 required
+                            />
+                            <input
+                                type="text"
+                                placeholder="Barcode (opsional)"
+                                value={addForm.barcode}
+                                onChange={(e) => setAddForm((prev) => ({ ...prev, barcode: e.target.value }))}
                             />
                             <div className={styles.modalRow}>
                                 <input

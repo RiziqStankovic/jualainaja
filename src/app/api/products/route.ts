@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { buildProductDescription, extractProductMeta, extractProductText, ProductStatus, resolveProductStatus } from '@/lib/product-meta';
 import { buildProductSlug, slugify } from '@/lib/public-link';
 
@@ -41,6 +42,7 @@ export async function GET(request: Request) {
     const tenantId = searchParams.get("tenantId");
     const tenantName = searchParams.get("tenantName");
     const search = searchParams.get("search") || "";
+    const searchValue = search.trim();
     const type = searchParams.get("type"); // Fisik, Digital, dll
     const pageParam = Number(searchParams.get("page") || 0);
     const perPageParam = Number(searchParams.get("perPage") || 0);
@@ -53,15 +55,18 @@ export async function GET(request: Request) {
     }
 
     try {
-        const where = {
+        const where: Prisma.PosProductWhereInput = {
             tenantId,
-            name: {
-                contains: search,
-            },
             ...(type ? { type } : {})
         };
+        if (searchValue) {
+            where.OR = [
+                { name: { contains: searchValue, mode: "insensitive" } },
+                { barcode: { contains: searchValue, mode: "insensitive" } },
+            ];
+        }
 
-        if (!search && !type && tenantName) {
+        if (!searchValue && !type && tenantName) {
             const existingTenant = await prisma.posTenant.findUnique({ where: { id: tenantId } });
             if (existingTenant && existingTenant.name !== tenantName) {
                 await prisma.posTenant.update({
@@ -111,10 +116,11 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, price, stock, type, categoryId, tenantId, tenantName, tenantEmail, status, statusDate, isPublic, description, imageUrl } = body;
+        const { name, price, stock, type, categoryId, tenantId, tenantName, tenantEmail, status, statusDate, isPublic, description, imageUrl, barcode } = body;
         if (!tenantId || typeof tenantId !== "string") {
             return NextResponse.json({ error: "tenantId wajib diisi." }, { status: 400 });
         }
+        const normalizedBarcode = typeof barcode === "string" ? barcode.trim() : "";
         const normalizedStatus = VALID_STATUS.includes(status) ? status : undefined;
         const normalizedDate = typeof statusDate === "string" && statusDate.trim() ? statusDate : null;
         const parsedStock = Number(stock);
@@ -152,6 +158,7 @@ export async function POST(request: Request) {
                 type,
                 categoryId: categoryId || null,
                 tenantId,
+                barcode: normalizedBarcode || null,
                 description: fullDescription,
                 imageUrl: typeof imageUrl === "string" && imageUrl.trim() ? imageUrl.trim() : null,
             }
@@ -164,6 +171,12 @@ export async function POST(request: Request) {
 
         return NextResponse.json(formatProduct(withTenant || product), { status: 201 });
     } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+            const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : String(error.meta?.target || "");
+            if (target.includes("barcode")) {
+                return NextResponse.json({ error: "Barcode sudah dipakai di toko ini." }, { status: 409 });
+            }
+        }
         console.error("Failed to create product:", error);
         return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
     }

@@ -13,6 +13,8 @@ model AppUser {
   email     String   @unique
   password  String
   role      String
+  printTemplate String?
+  printPaperWidth String? @default("58mm")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -53,6 +55,7 @@ model PosProduct {
   tenantId    String
   categoryId  String?
   name        String
+  barcode     String?
   description String?
   price       Float
   stock       Int      @default(0)
@@ -64,7 +67,8 @@ model PosProduct {
   tenant      PosTenant    @relation(fields: [tenantId], references: [id])
   category    PosCategory? @relation(fields: [categoryId], references: [id])
   transactionItems PosTransactionItem[]
-  
+
+  @@unique([tenantId, barcode])
   @@map("pos_product")
 }
 

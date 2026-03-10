@@ -2,10 +2,14 @@
   "name": "jualinaja",
   "version": "0.1.0",
   "private": true,
+  "main": "desktop-wrapper/main.cjs",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
+    "desktop": "electron ./desktop-wrapper/main.cjs",
+    "desktop:local": "set WRAPPER_URL=http://localhost:3000&& electron ./desktop-wrapper/main.cjs",
+    "desktop:dist": "set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win nsis portable --x64",
     "lint": "eslint",
     "postinstall": "prisma generate"
   },
@@ -23,9 +27,39 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.3.1",
+    "electron-builder": "^26.0.12",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "electron": "^37.0.0",
     "prisma": "^7.4.2",
     "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.jualinaja.desktop",
+    "productName": "JualinAja",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop-wrapper/**/*",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "icon": "desktop-wrapper/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "desktop-wrapper/icon.ico",
+      "uninstallerIcon": "desktop-wrapper/icon.ico"
+    }
   }
 }

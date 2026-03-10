@@ -4,7 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bluetooth, LogOut, ShieldAlert, UserCircle } from "lucide-react";
 import { clearSessionUser, getPurchaseHistory, getSalesHistory, getSessionUser, SessionUser } from "@/lib/local-auth";
-import { DEFAULT_RECEIPT_TEMPLATE, PAPER_WIDTH_CHARS, PaperWidth, renderReceiptFromTemplate } from "@/lib/receipt-template";
+import {
+    buildReceiptTemplateFromForm,
+    DEFAULT_RECEIPT_TEMPLATE,
+    DEFAULT_RECEIPT_TEMPLATE_FORM,
+    PAPER_WIDTH_CHARS,
+    PaperWidth,
+    parseReceiptTemplateToForm,
+    renderReceiptFromTemplate,
+    type ReceiptTemplateForm,
+} from "@/lib/receipt-template";
 import styles from "./page.module.css";
 
 type BluetoothStatus = {
@@ -25,6 +34,15 @@ type AndroidResult<T = unknown> = {
     message?: string;
     devices?: T;
 } & Record<string, unknown>;
+
+type AndroidBridge = {
+    [method: string]: ((...args: unknown[]) => string) | undefined;
+};
+
+type PrintSettingsResponse = {
+    printTemplate: string;
+    paperWidth: PaperWidth;
+};
 
 export default function AccountPage() {
     const router = useRouter();
@@ -49,7 +67,13 @@ export default function AccountPage() {
     const [btInfo, setBtInfo] = useState<string | null>(null);
     const [paperWidth, setPaperWidth] = useState<PaperWidth>("58mm");
     const [sampleNow, setSampleNow] = useState(() => new Date());
-    const [printTemplate, setPrintTemplate] = useState(() => DEFAULT_RECEIPT_TEMPLATE);
+    const [templateForm, setTemplateForm] = useState<ReceiptTemplateForm>(() => DEFAULT_RECEIPT_TEMPLATE_FORM);
+    const [useManualTemplate, setUseManualTemplate] = useState(false);
+    const [manualTemplate, setManualTemplate] = useState(() => DEFAULT_RECEIPT_TEMPLATE);
+    const printTemplate = useMemo(
+        () => (useManualTemplate ? manualTemplate : buildReceiptTemplateFromForm(templateForm)),
+        [manualTemplate, templateForm, useManualTemplate]
+    );
     const templateStorageKey = useMemo(() => {
         const email = sessionUser?.email || "anon";
         return `jualinaja.printTemplate.v1:${email}`;
@@ -60,10 +84,12 @@ export default function AccountPage() {
     }, [sessionUser?.email]);
 
     const [templateSavedInfo, setTemplateSavedInfo] = useState<string | null>(null);
+    const [settingsHydrated, setSettingsHydrated] = useState(false);
+    const normalizeTemplate = (value: string) => value.replaceAll("\r\n", "\n").trimEnd();
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const hasBridge = typeof (window as any).Android !== "undefined";
+        const hasBridge = typeof (window as Window & { Android?: AndroidBridge }).Android !== "undefined";
         setHasAndroidBridge(hasBridge);
 
         if (!hasBridge) return;
@@ -73,86 +99,155 @@ export default function AccountPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sessionUser?.email]);
 
-    // Load template (prioritas: localStorage -> Android storage)
+    // Load template + paper width (prioritas: DB -> localStorage -> Android bridge)
     useEffect(() => {
         if (typeof window === "undefined") return;
         if (!sessionUser) return;
+        let cancelled = false;
+        setSettingsHydrated(false);
 
-        try {
-            const saved = window.localStorage.getItem(templateStorageKey);
-            if (saved && saved.trim().length > 0) {
-                setPrintTemplate(saved);
-                return;
+        const loadSettings = async () => {
+            let nextTemplate: string | null = null;
+            let nextPaperWidth: PaperWidth | null = null;
+
+            try {
+                const res = await fetch(`/api/account/print-settings?email=${encodeURIComponent(sessionUser.email)}`, {
+                    cache: "no-store",
+                });
+                if (res.ok) {
+                    const data = (await res.json()) as PrintSettingsResponse;
+                    if (typeof data.printTemplate === "string" && data.printTemplate.trim().length > 0) {
+                        nextTemplate = data.printTemplate;
+                    }
+                    if (data.paperWidth === "58mm" || data.paperWidth === "80mm") {
+                        nextPaperWidth = data.paperWidth;
+                    }
+                }
+            } catch {
+                // ignore, fallback next source
             }
-        } catch {
-            // ignore
-        }
 
-        // fallback: ambil dari Android kalau tersedia
-        const raw = callAndroid("getPrintTemplate");
-        if (!raw) return;
-        try {
-            const parsed = JSON.parse(raw) as AndroidResult & { template?: string };
-            const tpl = (parsed as any).template;
-            if (parsed.success && typeof tpl === "string" && tpl.trim().length > 0) {
-                setPrintTemplate(tpl);
+            if (!nextTemplate) {
                 try {
-                    window.localStorage.setItem(templateStorageKey, tpl);
+                    const savedTemplate = window.localStorage.getItem(templateStorageKey);
+                    if (savedTemplate && savedTemplate.trim().length > 0) {
+                        nextTemplate = savedTemplate;
+                    }
                 } catch {
                     // ignore
                 }
             }
-        } catch {
-            // ignore
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [templateStorageKey, sessionUser?.email, hasAndroidBridge]);
 
-    // Load paper width
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        if (!sessionUser) return;
-        try {
-            const saved = window.localStorage.getItem(paperWidthStorageKey) as PaperWidth | null;
-            if (saved === "58mm" || saved === "80mm") {
-                setPaperWidth(saved);
+            if (!nextPaperWidth) {
+                try {
+                    const savedWidth = window.localStorage.getItem(paperWidthStorageKey);
+                    if (savedWidth === "58mm" || savedWidth === "80mm") {
+                        nextPaperWidth = savedWidth;
+                    }
+                } catch {
+                    // ignore
+                }
             }
-        } catch {
-            // ignore
-        }
-    }, [paperWidthStorageKey, sessionUser]);
 
-    // Auto-save template ke localStorage & Android (debounce)
+            if (!nextTemplate) {
+                const raw = callAndroid("getPrintTemplate");
+                if (raw) {
+                    try {
+                        const parsed = JSON.parse(raw) as AndroidResult & { template?: string };
+                        const tpl = parsed.template;
+                        if (parsed.success && typeof tpl === "string" && tpl.trim().length > 0) {
+                            nextTemplate = tpl;
+                        }
+                    } catch {
+                        // ignore
+                    }
+                }
+            }
+
+            if (cancelled) return;
+
+            if (nextTemplate) {
+                const parsedForm = parseReceiptTemplateToForm(nextTemplate);
+                const generated = buildReceiptTemplateFromForm(parsedForm);
+                const manualMode = normalizeTemplate(nextTemplate) !== normalizeTemplate(generated);
+
+                setTemplateForm(parsedForm);
+                setManualTemplate(nextTemplate);
+                setUseManualTemplate(manualMode);
+                try {
+                    window.localStorage.setItem(templateStorageKey, nextTemplate);
+                } catch {
+                    // ignore
+                }
+            }
+            if (nextPaperWidth) {
+                setPaperWidth(nextPaperWidth);
+                try {
+                    window.localStorage.setItem(paperWidthStorageKey, nextPaperWidth);
+                } catch {
+                    // ignore
+                }
+            }
+
+            setTemplateSavedInfo("Tersimpan");
+            setSettingsHydrated(true);
+        };
+
+        loadSettings();
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sessionUser?.email, templateStorageKey, paperWidthStorageKey, hasAndroidBridge]);
+
+    // Auto-save template + paper width ke localStorage, Android, dan DB (debounce)
     useEffect(() => {
         if (typeof window === "undefined") return;
-        if (!sessionUser) return;
+        if (!sessionUser || !settingsHydrated) return;
 
         const t = window.setTimeout(() => {
             try {
                 window.localStorage.setItem(templateStorageKey, printTemplate);
-                setTemplateSavedInfo("Tersimpan");
+                window.localStorage.setItem(paperWidthStorageKey, paperWidth);
             } catch {
-                setTemplateSavedInfo(null);
+                // ignore
             }
-
-            // sync ke Android jika ada
             callAndroid("setPrintTemplate", printTemplate);
-        }, 300);
+
+            void (async () => {
+                try {
+                    const res = await fetch("/api/account/print-settings", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            email: sessionUser.email,
+                            printTemplate,
+                            paperWidth,
+                        }),
+                    });
+                    if (res.ok) {
+                        setTemplateSavedInfo("Tersimpan ke cloud");
+                    } else {
+                        setTemplateSavedInfo("Tersimpan lokal (offline)");
+                    }
+                } catch {
+                    setTemplateSavedInfo("Tersimpan lokal (offline)");
+                }
+            })();
+        }, 400);
 
         return () => window.clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [printTemplate, templateStorageKey, sessionUser?.email]);
+    }, [sessionUser?.email, settingsHydrated, printTemplate, paperWidth, templateStorageKey, paperWidthStorageKey]);
 
-    // Auto-save paper width
+    const updateTemplateField = (field: keyof ReceiptTemplateForm, value: string) => {
+        setTemplateForm((prev) => ({ ...prev, [field]: value }));
+    };
+
     useEffect(() => {
-        if (typeof window === "undefined") return;
-        if (!sessionUser) return;
-        try {
-            window.localStorage.setItem(paperWidthStorageKey, paperWidth);
-        } catch {
-            // ignore
-        }
-    }, [paperWidth, paperWidthStorageKey, sessionUser]);
+        if (useManualTemplate) return;
+        setManualTemplate(buildReceiptTemplateFromForm(templateForm));
+    }, [templateForm, useManualTemplate]);
 
     const renderedPreview = useMemo(() => {
         const widthChars = PAPER_WIDTH_CHARS[paperWidth] ?? PAPER_WIDTH_CHARS["58mm"];
@@ -177,10 +272,12 @@ export default function AccountPage() {
 
     const callAndroid = (method: string, ...args: unknown[]): string | null => {
         if (typeof window === "undefined") return null;
-        const android = (window as any).Android;
-        if (!android || typeof android[method] !== "function") return null;
+        const android = (window as Window & { Android?: AndroidBridge }).Android;
+        if (!android) return null;
+        const target = android[method];
+        if (typeof target !== "function") return null;
         try {
-            return (android as any)[method](...args);
+            return target(...args);
         } catch {
             return null;
         }
@@ -478,8 +575,8 @@ export default function AccountPage() {
                         <div className={styles.printCard}>
                             <p className={styles.printTitle}>Template Struk</p>
                             <p className={styles.printHint}>
-                                Atur template menggunakan token seperti <b>{"{{ITEM_LINES}}"}</b>. Bagian di bawah akan
-                                menampilkan preview hasil dan bisa langsung di-test print.
+                                Atur format struk pakai form. Template tetap disimpan sebagai token dan akan disamakan
+                                ke Android wrapper.
                             </p>
                             <div className={styles.printMetaRow}>
                                 <span className={styles.printMeta}>
@@ -511,7 +608,9 @@ export default function AccountPage() {
                                         className={styles.printResetBtn}
                                         onClick={() => {
                                             window.localStorage.removeItem(templateStorageKey);
-                                            setPrintTemplate(DEFAULT_RECEIPT_TEMPLATE);
+                                            setTemplateForm(DEFAULT_RECEIPT_TEMPLATE_FORM);
+                                            setManualTemplate(DEFAULT_RECEIPT_TEMPLATE);
+                                            setUseManualTemplate(false);
                                         }}
                                         disabled={btPrinting}
                                     >
@@ -520,18 +619,89 @@ export default function AccountPage() {
                                 </div>
                             </div>
 
-                            <textarea
-                                className={styles.printTextarea}
-                                value={printTemplate}
-                                onChange={(e) => setPrintTemplate(e.target.value)}
-                                rows={10}
-                                spellCheck={false}
-                            />
+                            <div className={styles.templateFormGrid}>
+                                <label className={styles.templateField}>
+                                    <span>Label Waktu</span>
+                                    <input
+                                        type="text"
+                                        value={templateForm.datetimeLabel}
+                                        onChange={(e) => updateTemplateField("datetimeLabel", e.target.value)}
+                                        placeholder="Waktu"
+                                        disabled={useManualTemplate}
+                                    />
+                                </label>
+                                <label className={styles.templateField}>
+                                    <span>Label Kasir</span>
+                                    <input
+                                        type="text"
+                                        value={templateForm.cashierLabel}
+                                        onChange={(e) => updateTemplateField("cashierLabel", e.target.value)}
+                                        placeholder="Kasir"
+                                        disabled={useManualTemplate}
+                                    />
+                                </label>
+                                <label className={styles.templateField}>
+                                    <span>Label Metode Bayar</span>
+                                    <input
+                                        type="text"
+                                        value={templateForm.paymentMethodLabel}
+                                        onChange={(e) => updateTemplateField("paymentMethodLabel", e.target.value)}
+                                        placeholder="Metode"
+                                        disabled={useManualTemplate}
+                                    />
+                                </label>
+                                <label className={styles.templateField}>
+                                    <span>Label Total</span>
+                                    <input
+                                        type="text"
+                                        value={templateForm.totalLabel}
+                                        onChange={(e) => updateTemplateField("totalLabel", e.target.value)}
+                                        placeholder="TOTAL"
+                                        disabled={useManualTemplate}
+                                    />
+                                </label>
+                                <label className={styles.templateFieldWide}>
+                                    <span>Teks Penutup</span>
+                                    <input
+                                        type="text"
+                                        value={templateForm.closingText}
+                                        onChange={(e) => updateTemplateField("closingText", e.target.value)}
+                                        placeholder="Terima kasih"
+                                        disabled={useManualTemplate}
+                                    />
+                                </label>
+                            </div>
+
+                            <label className={styles.customTemplateToggle}>
+                                <input
+                                    type="checkbox"
+                                    checked={useManualTemplate}
+                                    onChange={(e) => setUseManualTemplate(e.target.checked)}
+                                />
+                                <span>Gunakan Template Manual (Custom Bebas)</span>
+                            </label>
+                            {useManualTemplate && (
+                                <label className={styles.customTemplateField}>
+                                    <span>Template Manual</span>
+                                    <textarea
+                                        value={manualTemplate}
+                                        onChange={(e) => setManualTemplate(e.target.value)}
+                                        rows={10}
+                                        placeholder="{{STORE_NAME}}\n{{DIVIDER}}\n..."
+                                    />
+                                </label>
+                            )}
 
                             <p className={styles.printTitle} style={{ marginTop: 12 }}>
                                 Preview Hasil
                             </p>
-                            <pre className={styles.printPreviewBox}>{renderedPreview}</pre>
+                            <pre
+                                className={`${styles.printPreviewBox} ${
+                                    paperWidth === "58mm" ? styles.printPreview58 : styles.printPreview80
+                                }`}
+                            >
+                                {renderedPreview}
+                            </pre>
 
                             <div className={styles.printActions}>
                                 <button

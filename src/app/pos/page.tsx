@@ -17,6 +17,8 @@ import {
     CreditCard,
     LayoutGrid,
     List,
+    ScanLine,
+    X,
 } from "lucide-react";
 import { addSalesHistory, getSessionUser, getTenantContext } from "@/lib/local-auth";
 import { DEFAULT_RECEIPT_TEMPLATE, PAPER_WIDTH_CHARS, PaperWidth, renderReceiptFromTemplate } from "@/lib/receipt-template";
@@ -24,6 +26,7 @@ import { DEFAULT_RECEIPT_TEMPLATE, PAPER_WIDTH_CHARS, PaperWidth, renderReceiptF
 interface Product {
     id: string;
     name: string;
+    barcode?: string | null;
     price: number;
     stock: number;
     type: string;
@@ -57,8 +60,37 @@ interface CheckoutResponse {
     error?: string;
 }
 
+interface ScannedHistoryItem {
+    key: string;
+    productId?: string;
+    name: string;
+    barcode: string;
+    scannedAt: number;
+    count: number;
+    found: boolean;
+}
+
 const getPrintTemplateKey = (email?: string | null) => `jualinaja.printTemplate.v1:${email || "anon"}`;
 const getPaperWidthKey = (email?: string | null) => `jualinaja.printPaperWidth.v1:${email || "anon"}`;
+
+type PrintSettingsResponse = {
+    printTemplate: string;
+    paperWidth: PaperWidth;
+};
+
+const loadDbPrintSettings = async (email?: string | null): Promise<PrintSettingsResponse | null> => {
+    if (!email) return null;
+    try {
+        const res = await fetch(`/api/account/print-settings?email=${encodeURIComponent(email)}`, { cache: "no-store" });
+        if (!res.ok) return null;
+        const data = (await res.json()) as PrintSettingsResponse;
+        if (typeof data.printTemplate !== "string") return null;
+        if (data.paperWidth !== "58mm" && data.paperWidth !== "80mm") return null;
+        return data;
+    } catch {
+        return null;
+    }
+};
 
 const PAGE_SIZE = 8;
 const CACHE_STALE_MS = 20_000;
@@ -92,6 +124,10 @@ const SORT_PARAM_MAP: Record<string, string> = {
     "Nama: Z-A": "name_desc",
 };
 const CASH_SUGGESTIONS = [2000, 5000, 10000, 20000, 50000];
+type BarcodeDetectorResult = { rawValue?: string };
+type BarcodeDetectorInstance = { detect: (source: ImageBitmapSource) => Promise<BarcodeDetectorResult[]> };
+type BarcodeDetectorCtor = new (opts?: { formats?: string[] }) => BarcodeDetectorInstance;
+type AndroidBridge = { print?: (payload: string) => string };
 
 export default function POSPage() {
     const initialFilter = persistedPosUiState.activeFilter;
@@ -121,6 +157,11 @@ export default function POSPage() {
     const [processingPayment, setProcessingPayment] = useState(false);
     const [storeName, setStoreName] = useState("Toko");
     const [viewMode, setViewMode] = useState<"grid" | "list">(initialViewMode);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [scannerError, setScannerError] = useState("");
+    const [isScanning, setIsScanning] = useState(false);
+    const [manualScanValue, setManualScanValue] = useState("");
+    const [scanHistory, setScanHistory] = useState<ScannedHistoryItem[]>([]);
 
     const locationOptions = ["Semua Lokasi", "Jakarta", "Bandung", "Surabaya", "Yogyakarta", "Denpasar", "Medan"];
     const filteredLocations = locationOptions.filter((loc) =>
@@ -135,6 +176,11 @@ export default function POSPage() {
     const queryVersionRef = useRef(0);
     const nextPageRef = useRef(initialCachedEntry ? initialCachedEntry.pages.length + 1 : 1);
     const cacheRef = useRef<Map<string, ProductCacheEntry>>(queryCacheStore);
+    const scannerVideoRef = useRef<HTMLVideoElement>(null);
+    const scannerStreamRef = useRef<MediaStream | null>(null);
+    const scannerIntervalRef = useRef<number | null>(null);
+    const detectorBusyRef = useRef(false);
+    const lastScannedRef = useRef<{ barcode: string; at: number }>({ barcode: "", at: 0 });
 
     const queryKey = useMemo(() => getQueryKey(search, activeFilter, activeSort), [search, activeFilter, activeSort]);
 
@@ -320,6 +366,8 @@ export default function POSPage() {
             };
             setCart([]);
             setSearch("");
+            setManualScanValue("");
+            setScanHistory([]);
             setActiveFilter("Semua");
             setActiveSort("Nama: A-Z");
         };
@@ -328,7 +376,7 @@ export default function POSPage() {
         return () => window.removeEventListener("auth:logout", handleLogout);
     }, [cacheRef]);
 
-    const addToCart = (product: Product) => {
+    const addToCart = useCallback((product: Product) => {
         setCart((prev) => {
             const exists = prev.find((item) => item.id === product.id);
             const currentQty = exists?.quantity || 0;
@@ -343,7 +391,178 @@ export default function POSPage() {
             }
             return [...prev, { ...product, quantity: 1 }];
         });
-    };
+    }, []);
+
+    const stopScanner = useCallback(() => {
+        if (scannerIntervalRef.current !== null) {
+            window.clearInterval(scannerIntervalRef.current);
+            scannerIntervalRef.current = null;
+        }
+        if (scannerStreamRef.current) {
+            for (const track of scannerStreamRef.current.getTracks()) {
+                track.stop();
+            }
+            scannerStreamRef.current = null;
+        }
+        if (scannerVideoRef.current) {
+            scannerVideoRef.current.srcObject = null;
+        }
+        detectorBusyRef.current = false;
+        setIsScanning(false);
+    }, []);
+
+    const upsertScanHistory = useCallback((entry: Omit<ScannedHistoryItem, "scannedAt" | "count">) => {
+        const now = Date.now();
+        setScanHistory((prev) => {
+            const idx = prev.findIndex((item) => item.key === entry.key);
+            if (idx === -1) {
+                return [{ ...entry, scannedAt: now, count: 1 }, ...prev].slice(0, 30);
+            }
+            const next = [...prev];
+            const existing = next[idx];
+            next[idx] = { ...existing, ...entry, scannedAt: now, count: existing.count + 1 };
+            next.sort((a, b) => b.scannedAt - a.scannedAt);
+            return next;
+        });
+    }, []);
+
+    const findProductByBarcode = useCallback(async (barcode: string) => {
+        const normalized = barcode.trim().toLowerCase();
+        if (!normalized) return null;
+
+        const local = products.find((product) => (product.barcode || "").trim().toLowerCase() === normalized);
+        if (local) return local;
+
+        const sessionUser = getSessionUser();
+        const tenant = getTenantContext(sessionUser);
+        if (!tenant) return null;
+
+        try {
+            const q = new URLSearchParams();
+            q.set("tenantId", tenant.tenantId);
+            q.set("search", barcode.trim());
+            q.set("page", "1");
+            q.set("perPage", "10");
+            const res = await fetch(`/api/products?${q.toString()}`, { cache: "no-store" });
+            if (!res.ok) return null;
+            const data = (await res.json()) as PaginatedProductsResponse;
+            return data.items.find((product) => (product.barcode || "").trim().toLowerCase() === normalized) || null;
+        } catch {
+            return null;
+        }
+    }, [products]);
+
+    const handleScanValue = useCallback(async (rawValue?: string) => {
+        const cleanValue = (rawValue || "").trim();
+        if (!cleanValue) return;
+
+        const now = Date.now();
+        if (
+            cleanValue === lastScannedRef.current.barcode &&
+            now - lastScannedRef.current.at < 1200
+        ) {
+            return;
+        }
+        lastScannedRef.current = { barcode: cleanValue, at: now };
+
+        setSearch(cleanValue);
+        setManualScanValue(cleanValue);
+
+        const matchedProduct = await findProductByBarcode(cleanValue);
+        if (matchedProduct) {
+            addToCart(matchedProduct);
+            upsertScanHistory({
+                key: matchedProduct.id,
+                productId: matchedProduct.id,
+                name: matchedProduct.name,
+                barcode: matchedProduct.barcode || cleanValue,
+                found: true,
+            });
+            setManualScanValue("");
+            setScannerError("");
+            return;
+        }
+
+        upsertScanHistory({
+            key: `unknown:${cleanValue.toLowerCase()}`,
+            name: "Produk tidak ditemukan",
+            barcode: cleanValue,
+            found: false,
+        });
+        setManualScanValue("");
+        setScannerError(`Barcode ${cleanValue} tidak ditemukan.`);
+    }, [findProductByBarcode, upsertScanHistory, addToCart]);
+
+    const startScanner = useCallback(async () => {
+        setScannerError("");
+        const BarcodeDetectorApi = (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector;
+        if (!BarcodeDetectorApi) {
+            setScannerError("Browser belum mendukung scan kamera. Pakai input manual di bawah (atau buka via Chrome/Edge terbaru).");
+            return;
+        }
+        if (!navigator.mediaDevices?.getUserMedia) {
+            setScannerError("Akses kamera tidak tersedia. Gunakan input manual di bawah.");
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: "environment" } },
+                audio: false,
+            });
+            scannerStreamRef.current = stream;
+            const video = scannerVideoRef.current;
+            if (!video) {
+                setScannerError("Preview kamera tidak tersedia.");
+                stopScanner();
+                return;
+            }
+
+            video.srcObject = stream;
+            await video.play();
+
+            const detector = new BarcodeDetectorApi({
+                formats: ["ean_13", "ean_8", "code_128", "code_39", "upc_a", "upc_e", "itf", "qr_code"],
+            });
+
+            setIsScanning(true);
+            scannerIntervalRef.current = window.setInterval(async () => {
+                if (detectorBusyRef.current) return;
+                const currentVideo = scannerVideoRef.current;
+                if (!currentVideo || currentVideo.readyState < 2) return;
+
+                detectorBusyRef.current = true;
+                try {
+                    const result = await detector.detect(currentVideo);
+                    const scannedValue = result.find((item) => item.rawValue)?.rawValue;
+                    if (scannedValue) {
+                        await handleScanValue(scannedValue);
+                    }
+                } catch {
+                    // ignore transient detector errors
+                } finally {
+                    detectorBusyRef.current = false;
+                }
+            }, 350);
+        } catch {
+            setScannerError("Kamera tidak bisa diakses. Pastikan izin kamera sudah diberikan.");
+            stopScanner();
+        }
+    }, [handleScanValue, stopScanner]);
+
+    useEffect(() => {
+        if (!isScannerOpen) {
+            stopScanner();
+            return;
+        }
+        void startScanner();
+    }, [isScannerOpen, startScanner, stopScanner]);
+
+    useEffect(() => {
+        return () => {
+            stopScanner();
+        };
+    }, [stopScanner]);
 
     const updateQuantity = (id: string, delta: number) => {
         setCart((prev) =>
@@ -453,13 +672,20 @@ export default function POSPage() {
 
             // Coba print struk pakai template custom (kalau jalan di Android wrapper)
             try {
-                const android = (window as any).Android;
+                const android = (window as Window & { Android?: AndroidBridge }).Android;
                 if (android && typeof android.print === "function") {
                     const user = getSessionUser();
                     const key = getPrintTemplateKey(user?.email);
                     const widthKey = getPaperWidthKey(user?.email);
-                    const tpl = window.localStorage.getItem(key) || DEFAULT_RECEIPT_TEMPLATE;
-                    const paper = (window.localStorage.getItem(widthKey) as PaperWidth | null) || "58mm";
+                    let tpl = window.localStorage.getItem(key) || DEFAULT_RECEIPT_TEMPLATE;
+                    let paper = (window.localStorage.getItem(widthKey) as PaperWidth | null) || "58mm";
+                    const dbSettings = await loadDbPrintSettings(user?.email);
+                    if (dbSettings) {
+                        tpl = dbSettings.printTemplate || tpl;
+                        paper = dbSettings.paperWidth;
+                        window.localStorage.setItem(key, tpl);
+                        window.localStorage.setItem(widthKey, paper);
+                    }
                     const widthChars = PAPER_WIDTH_CHARS[paper] ?? PAPER_WIDTH_CHARS["58mm"];
 
                     const receiptText = renderReceiptFromTemplate(
@@ -529,11 +755,20 @@ export default function POSPage() {
                 <Search className={styles.searchIcon} size={18} />
                 <input
                     type="text"
-                    placeholder="Cari produk, toko atau lokasi..."
+                    placeholder="Cari produk atau scan barcode..."
                     className={styles.searchInput}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
+                <button
+                    type="button"
+                    className={styles.scanBtn}
+                    onClick={() => setIsScannerOpen(true)}
+                    aria-label="Scan barcode"
+                >
+                    <ScanLine size={16} />
+                    <span>Scan</span>
+                </button>
             </div>
 
             <div className={styles.filtersWrapper}>
@@ -739,6 +974,101 @@ export default function POSPage() {
                     >
                         Lanjut
                     </button>
+                </div>
+            )}
+
+            {isScannerOpen && (
+                <div className={styles.scannerOverlay} onClick={() => setIsScannerOpen(false)}>
+                    <div className={styles.scannerModal} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles.scannerHeader}>
+                            <h3>Scan Barcode</h3>
+                            <button type="button" className={styles.scannerCloseBtn} onClick={() => setIsScannerOpen(false)}>
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <video ref={scannerVideoRef} className={styles.scannerVideo} autoPlay muted playsInline />
+                        <p className={styles.scannerHint}>Arahkan barcode ke tengah frame kamera.</p>
+                        {scannerError && <p className={styles.scannerError}>{scannerError}</p>}
+
+                        <form
+                            className={styles.manualScanForm}
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                void handleScanValue(manualScanValue);
+                            }}
+                        >
+                            <input
+                                type="text"
+                                value={manualScanValue}
+                                onChange={(e) => setManualScanValue(e.target.value)}
+                                className={styles.manualScanInput}
+                                placeholder="Input barcode manual / scan gun scanner"
+                            />
+                            <button type="submit" className={styles.manualScanBtn}>
+                                Tambah
+                            </button>
+                        </form>
+
+                        <div className={styles.scanHistoryWrap}>
+                            <p className={styles.scanHistoryTitle}>Produk hasil scan (terbaru)</p>
+                            {scanHistory.length === 0 ? (
+                                <p className={styles.scanHistoryEmpty}>Belum ada barcode yang discan.</p>
+                            ) : (
+                                <div className={styles.scanHistoryList}>
+                                    {scanHistory.map((entry) => {
+                                        const productId = entry.productId;
+                                        const cartQty = productId ? getCartQuantity(productId) : 0;
+                                        const productSource =
+                                            (productId && products.find((p) => p.id === productId)) ||
+                                            (productId && cart.find((item) => item.id === productId)) ||
+                                            null;
+
+                                        return (
+                                            <div key={entry.key} className={styles.scanHistoryItem}>
+                                                <div className={styles.scanHistoryMeta}>
+                                                    <strong>{entry.name}</strong>
+                                                    <span>Barcode: {entry.barcode}</span>
+                                                    <span>
+                                                        Scan {entry.count}x - {new Date(entry.scannedAt).toLocaleTimeString("id-ID")}
+                                                    </span>
+                                                </div>
+                                                {entry.found && productId ? (
+                                                    <div className={styles.scanHistoryActions}>
+                                                        <button type="button" onClick={() => updateQuantity(productId, -1)}>-</button>
+                                                        <span>{cartQty}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (productSource) addToCart(productSource);
+                                                            }}
+                                                            disabled={!productSource}
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <span className={styles.scanHistoryNotFound}>Tidak ketemu</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            type="button"
+                            className={styles.scannerRetryBtn}
+                            onClick={() => {
+                                stopScanner();
+                                void startScanner();
+                            }}
+                            disabled={isScanning}
+                        >
+                            {isScanning ? "Sedang scan..." : "Coba Lagi"}
+                        </button>
+                    </div>
                 </div>
             )}
 

@@ -17,6 +17,11 @@ export const metadata: Metadata = {
   title: "Jualaja Cloudfren | Solusi POS Cerdas UMKM",
   description: "Platform Point of Sales (POS) dan digitalisasi UMKM dari Cloudfren. Kelola stok, kasir, dan katalog produk dalam satu genggaman.",
   keywords: ["POS", "UMKM", "Aplikasi Kasir Pintar", "Retail", "Cloudfren", "Jualaja"],
+  icons: {
+    icon: "/jualinajalogo.png",
+    shortcut: "/jualinajalogo.png",
+    apple: "/jualinajalogo.png",
+  },
 };
 
 export default function RootLayout({

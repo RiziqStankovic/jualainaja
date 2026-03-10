@@ -404,30 +404,108 @@
     white-space: nowrap;
 }
 
-.printTextarea {
+.templateFormGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.templateField {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.templateFieldWide {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    grid-column: 1 / -1;
+}
+
+.templateField span,
+.templateFieldWide span {
+    font-size: 11px;
+    color: #475569;
+    font-weight: 700;
+}
+
+.templateField input,
+.templateFieldWide input {
     width: 100%;
-    resize: vertical;
-    min-height: 160px;
-    border-radius: 12px;
+    border-radius: 10px;
     border: 1px solid #e2e8f0;
-    padding: 10px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    padding: 8px 10px;
     font-size: 12px;
     color: #0f172a;
     background: #f8fafc;
+}
+
+.customTemplateToggle {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+}
+
+.customTemplateField {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.customTemplateField span {
+    font-size: 11px;
+    color: #475569;
+    font-weight: 700;
+}
+
+.customTemplateField textarea {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    padding: 10px;
+    font-size: 12px;
+    color: #0f172a;
+    background: #f8fafc;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    resize: vertical;
 }
 
 .printPreviewBox {
     margin-top: 8px;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
-    padding: 10px;
+    padding: 10px 12px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 12px;
-    background: #0b1220;
-    color: #e2e8f0;
+    line-height: 1.35;
+    background: #ffffff;
+    color: #0f172a;
     white-space: pre-wrap;
-    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow: hidden;
+}
+
+.printPreview58 {
+    font-size: 11.5px;
+}
+
+.printPreview80 {
+    font-size: 12px;
+}
+
+@media (max-width: 640px) {
+    .templateFormGrid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .printActions {

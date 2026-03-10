@@ -9,6 +9,7 @@ import { getSessionUser, getTenantContext } from "@/lib/local-auth";
 type ProductDetail = {
     id: string;
     name: string;
+    barcode?: string | null;
     price: number;
     stock: number;
     type: string;
@@ -41,6 +42,7 @@ export default function ProductDetailPage() {
     const [copied, setCopied] = useState(false);
     const [form, setForm] = useState({
         name: "",
+        barcode: "",
         price: "",
         stock: "",
         type: "Fisik",
@@ -66,6 +68,7 @@ export default function ProductDetailPage() {
                 const data = (await res.json()) as ProductDetail;
                 setForm({
                     name: data.name || "",
+                    barcode: data.barcode || "",
                     price: String(data.price ?? ""),
                     stock: String(data.stock ?? ""),
                     type: data.type || "Fisik",
@@ -107,6 +110,7 @@ export default function ProductDetailPage() {
                 body: JSON.stringify({
                     tenantId: tenant.tenantId,
                     name: form.name,
+                    barcode: form.barcode || null,
                     price: Number(form.price),
                     stock: Number(form.stock),
                     type: form.type,
@@ -177,6 +181,15 @@ export default function ProductDetailPage() {
                         value={form.name}
                         onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                         required
+                    />
+                </label>
+                <label>
+                    Barcode
+                    <input
+                        type="text"
+                        value={form.barcode}
+                        onChange={(e) => setForm((prev) => ({ ...prev, barcode: e.target.value }))}
+                        placeholder="Opsional"
                     />
                 </label>
 

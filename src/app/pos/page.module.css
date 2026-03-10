@@ -68,7 +68,7 @@
 
 .searchInput {
     width: 100%;
-    padding: 14px 16px 14px 44px;
+    padding: 14px 104px 14px 44px;
     border-radius: 24px;
     border: 1px solid var(--border-color);
     font-size: 14px;
@@ -80,6 +80,25 @@
 
 .searchInput:focus {
     border-color: #0d9488;
+}
+
+.scanBtn {
+    position: absolute;
+    right: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 1px solid #ccfbf1;
+    background: #f0fdfa;
+    color: #0f766e;
+    border-radius: 999px;
+    height: 32px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
 }
 
 /* Filters */
@@ -452,6 +471,215 @@
     min-width: 112px;
 }
 
+.scannerOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 240;
+    background: rgba(15, 23, 42, 0.68);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.scannerModal {
+    width: min(420px, 100%);
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #dbe5ef;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.scannerHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.scannerHeader h3 {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.scannerCloseBtn {
+    width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    border: 1px solid #dbe5ef;
+    background: #fff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.scannerVideo {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid #dbe5ef;
+    background: #0f172a;
+}
+
+.scannerHint {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.scannerError {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: #dc2626;
+}
+
+.manualScanForm {
+    display: flex;
+    gap: 8px;
+}
+
+.manualScanInput {
+    flex: 1;
+    border: 1px solid #dbe5ef;
+    border-radius: 10px;
+    height: 38px;
+    padding: 0 10px;
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.manualScanBtn {
+    border: 0;
+    border-radius: 10px;
+    background: #0f766e;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 0 12px;
+    height: 38px;
+    cursor: pointer;
+}
+
+.scanHistoryWrap {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 8px;
+    max-height: 180px;
+    overflow: auto;
+}
+
+.scanHistoryTitle {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.scanHistoryEmpty {
+    margin: 0;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.scanHistoryList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.scanHistoryItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 8px;
+    background: #f8fafc;
+}
+
+.scanHistoryMeta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+}
+
+.scanHistoryMeta strong {
+    font-size: 12px;
+    color: #0f172a;
+    line-height: 1.3;
+}
+
+.scanHistoryMeta span {
+    font-size: 11px;
+    color: #475569;
+}
+
+.scanHistoryActions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #dbe5ef;
+    border-radius: 999px;
+    background: #fff;
+    padding: 4px;
+}
+
+.scanHistoryActions button {
+    border: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    background: #0f766e;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.scanHistoryActions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.scanHistoryActions span {
+    min-width: 16px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.scanHistoryNotFound {
+    font-size: 11px;
+    font-weight: 700;
+    color: #dc2626;
+}
+
+.scannerRetryBtn {
+    border: 0;
+    border-radius: 10px;
+    height: 38px;
+    background: linear-gradient(135deg, #0d9488, #0f766e);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.scannerRetryBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
 @media (max-width: 640px) {
     .header {
         padding: 18px 14px 12px;
@@ -467,6 +695,15 @@
 
     .searchIcon {
         left: 28px;
+    }
+
+    .searchInput {
+        padding-right: 92px;
+    }
+
+    .scanBtn {
+        right: 20px;
+        padding: 0 10px;
     }
 
     .filtersWrapper {
