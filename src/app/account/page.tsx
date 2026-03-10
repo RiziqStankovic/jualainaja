@@ -19,6 +19,7 @@ import styles from "./page.module.css";
 type BluetoothStatus = {
     supported: boolean;
     enabled: boolean;
+    permissionGranted?: boolean;
     lastDeviceAddress?: string;
     connected: boolean;
 };
@@ -286,7 +287,11 @@ export default function AccountPage() {
     const refreshBluetoothStatus = () => {
         setBtError(null);
         const raw = callAndroid("getBluetoothStatus");
-        if (!raw) return;
+        if (!raw) {
+            setBtStatus(null);
+            setBtError("Bridge Android tidak merespons. Pastikan aplikasi wrapper Android versi terbaru terpasang.");
+            return;
+        }
         try {
             const parsed = JSON.parse(raw) as BluetoothStatus;
             setBtStatus(parsed);
@@ -298,7 +303,11 @@ export default function AccountPage() {
     const refreshPairedDevices = () => {
         setBtError(null);
         const raw = callAndroid("listPairedDevices");
-        if (!raw) return;
+        if (!raw) {
+            setBtDevices([]);
+            setBtError("Bridge Android tidak merespons saat memuat perangkat Bluetooth.");
+            return;
+        }
         try {
             const parsed = JSON.parse(raw) as AndroidResult<PairedDevice[]>;
             if (!parsed.success) {
@@ -503,6 +512,17 @@ export default function AccountPage() {
                                     }`}
                                 >
                                     {btStatus.enabled ? "Bluetooth aktif" : "Bluetooth mati"}
+                                </span>
+                                <span
+                                    className={`${styles.btBadge} ${
+                                        btStatus.permissionGranted === false
+                                            ? styles.btBadgeWarn
+                                            : styles.btBadgeNeutral
+                                    }`}
+                                >
+                                    {btStatus.permissionGranted === false
+                                        ? "Izin Bluetooth belum diizinkan"
+                                        : "Izin Bluetooth siap"}
                                 </span>
                                 <span
                                     className={`${styles.btBadge} ${
