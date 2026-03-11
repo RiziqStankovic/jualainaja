@@ -68,7 +68,7 @@
 
 .searchInput {
     width: 100%;
-    padding: 14px 104px 14px 44px;
+    padding: 14px 148px 14px 44px;
     border-radius: 24px;
     border: 1px solid var(--border-color);
     font-size: 14px;
@@ -80,6 +80,23 @@
 
 .searchInput:focus {
     border-color: #0d9488;
+}
+
+.searchClearBtn {
+    position: absolute;
+    right: 86px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #6b7280;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 
 .scanBtn {
@@ -698,7 +715,13 @@
     }
 
     .searchInput {
-        padding-right: 92px;
+        padding-right: 132px;
+    }
+
+    .searchClearBtn {
+        right: 76px;
+        width: 24px;
+        height: 24px;
     }
 
     .scanBtn {

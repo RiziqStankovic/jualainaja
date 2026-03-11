@@ -90,13 +90,32 @@ export default function AccountPage() {
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const hasBridge = typeof (window as Window & { Android?: AndroidBridge }).Android !== "undefined";
-        setHasAndroidBridge(hasBridge);
+        let cancelled = false;
+        let attempts = 0;
+        const maxAttempts = 20;
 
-        if (!hasBridge) return;
+        const detectBridge = () => {
+            if (cancelled) return;
+            const hasBridge = typeof (window as Window & { Android?: AndroidBridge }).Android !== "undefined";
+            setHasAndroidBridge(hasBridge);
 
-        refreshBluetoothStatus();
-        refreshPairedDevices();
+            if (hasBridge) {
+                refreshBluetoothStatus();
+                refreshPairedDevices();
+                return;
+            }
+
+            attempts += 1;
+            if (attempts < maxAttempts) {
+                window.setTimeout(detectBridge, 300);
+            }
+        };
+
+        detectBridge();
+
+        return () => {
+            cancelled = true;
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sessionUser?.email]);
 

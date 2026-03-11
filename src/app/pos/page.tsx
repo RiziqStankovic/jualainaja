@@ -550,6 +550,14 @@ export default function POSPage() {
         }
     }, [handleScanValue, stopScanner]);
 
+    const handleCloseScanner = useCallback(() => {
+        setIsScannerOpen(false);
+        setManualScanValue("");
+        setScannerError("");
+        setSearch("");
+        lastScannedRef.current = { barcode: "", at: 0 };
+    }, []);
+
     useEffect(() => {
         if (!isScannerOpen) {
             stopScanner();
@@ -760,6 +768,16 @@ export default function POSPage() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
+                {search.trim().length > 0 && (
+                    <button
+                        type="button"
+                        className={styles.searchClearBtn}
+                        onClick={() => setSearch("")}
+                        aria-label="Clear pencarian"
+                    >
+                        <X size={14} />
+                    </button>
+                )}
                 <button
                     type="button"
                     className={styles.scanBtn}
@@ -978,11 +996,11 @@ export default function POSPage() {
             )}
 
             {isScannerOpen && (
-                <div className={styles.scannerOverlay} onClick={() => setIsScannerOpen(false)}>
+                <div className={styles.scannerOverlay} onClick={handleCloseScanner}>
                     <div className={styles.scannerModal} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.scannerHeader}>
                             <h3>Scan Barcode</h3>
-                            <button type="button" className={styles.scannerCloseBtn} onClick={() => setIsScannerOpen(false)}>
+                            <button type="button" className={styles.scannerCloseBtn} onClick={handleCloseScanner}>
                                 <X size={18} />
                             </button>
                         </div>
