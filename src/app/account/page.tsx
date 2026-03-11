@@ -294,10 +294,9 @@ export default function AccountPage() {
         if (typeof window === "undefined") return null;
         const android = (window as Window & { Android?: AndroidBridge }).Android;
         if (!android) return null;
-        const target = android[method];
-        if (typeof target !== "function") return null;
+        if (typeof android[method] !== "function") return null;
         try {
-            return target(...args);
+            return (android[method] as (...methodArgs: unknown[]) => string).apply(android, args);
         } catch {
             return null;
         }
