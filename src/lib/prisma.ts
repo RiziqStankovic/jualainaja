@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -12,13 +11,10 @@ const poolMax = Number.isFinite(parsedPoolMax) && parsedPoolMax > 0 ? parsedPool
 
 declare global {
     var prisma: PrismaClient | undefined;
-    var pgPool: Pool | undefined;
 }
 
-const getPool = () => {
-    if (globalThis.pgPool) return globalThis.pgPool;
-
-    const pool = new Pool({
+const createPrismaClient = () => {
+    const adapter = new PrismaPg({
         connectionString,
         max: poolMax,
         idleTimeoutMillis: 5_000,
@@ -26,19 +22,6 @@ const getPool = () => {
         allowExitOnIdle: process.env.NODE_ENV !== "production",
     });
 
-    pool.on("error", (error) => {
-        console.error("Postgres pool error:", error);
-    });
-
-    if (process.env.NODE_ENV !== "production") {
-        globalThis.pgPool = pool;
-    }
-
-    return pool;
-};
-
-const createPrismaClient = () => {
-    const adapter = new PrismaPg(getPool());
     return new PrismaClient({ adapter });
 };
 
